@@ -17,5 +17,7 @@ protected:
 
 private:
     QTableView *view;
+
+    void averageOp();
 };
 #endif // WIDGET_H
