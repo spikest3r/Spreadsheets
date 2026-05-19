@@ -3,6 +3,11 @@
 #include <QAbstractTableModel>
 #include <QVariant>
 #include <QModelIndex>
+#include <QPair>
+
+inline size_t qHash(const QPair<int,int> &key, size_t seed = 0) {
+    return qHash(key.first, seed) ^ qHash(key.second, seed << 1);
+}
 
 class TableModel : public QAbstractTableModel
 {
@@ -22,6 +27,14 @@ public:
 
 protected:
     QVector<QVector<QVariant>> data_;
+
+public:
+    QHash<QPair<int,int>, QList<QPair<int,int>>> dependencyGraph;
+    QMap<QPair<int,int>, QString> computedValues;
+    void addDependency(QPair<int,int> dependency, QPair<int,int> dependent);
+    void removeDependency(QPair<int,int> dependency, QPair<int,int> dependent);
+    void clearDependencies(QPair<int,int> dependent);
+    QList<QPair<int,int>> getDependents(QPair<int,int> dependency);
 };
 
 #endif // TABLEMODEL_H

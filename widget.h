@@ -4,11 +4,32 @@
 #include <QWidget>
 #include <QLabel>
 #include <QTableView>
+#include <QSet>
+#include <QTableView>
+#include <QResizeEvent>
+#include <QVBoxLayout>
+#include <QMenu>
+#include <QMenuBar>
+#include <QStatusBar>
+#include <QLabel>
+#include <QMessageBox>
+#include <QLineEdit>
+
+#define _USE_MATH_DEFINES
+#include <cmath>
 
 enum FormulaOP {
     NOTHING,
     CELLREF,
-    SUM
+    SUM,
+    POWER,
+    SQRT,
+    MOD,
+    ABS,
+    ROUND,
+    FLOOR,
+    CEIL,
+    PI
 };
 
 class Widget : public QWidget
@@ -23,19 +44,23 @@ protected:
     void resizeEvent(QResizeEvent *event) override;
     void onRangeSelectionChanged(const QItemSelection &selected,
                                          const QItemSelection &deselected);
+    void onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
+    void onSelectionChangedSlot(const QItemSelection &selected, const QItemSelection &deselected);
+    void onFormulaBarEdited();
 
 private:
     QTableView *view;
+    QLineEdit* formulaBar;
 
     void averageBtn();
     void testParseBtn(); // TODO: Remove
 
     float averageOp();
     QLabel *labelAverage;
-    float parseFormula(QString formula, bool* err);
-    float parseOperation(FormulaOP operation, std::vector<QString> args, bool* error);
+    float parseFormula(QString formula, bool* err, QSet<QPair<int,int>>& dependencies);
+    float parseOperation(FormulaOP operation, std::vector<QString> args, bool* error, QSet<QPair<int,int>>& dependencies);
     FormulaOP strToOp(QString str);
     std::vector<QString> tokenizeFormula(QString formula);
-    std::vector<QString> evaluateExpression(std::vector<QString> tokens, bool* err);
+    std::vector<QString> evaluateExpression(std::vector<QString> tokens, bool* err, QSet<QPair<int,int>>& dependencies);
 };
 #endif // WIDGET_H

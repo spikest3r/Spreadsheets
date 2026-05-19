@@ -26,12 +26,12 @@ float Widget::averageOp() {
     return average;
 }
 
-float Widget::parseFormula(QString formula, bool* err) {
+float Widget::parseFormula(QString formula, bool* err, QSet<QPair<int,int>>& dependencies) {
     // break into tokens
     std::vector<QString> tokens = tokenizeFormula(formula);
 
     // parse tokens into math engine ready ops
-    std::vector<QString> expression = evaluateExpression(tokens, err);
+    std::vector<QString> expression = evaluateExpression(tokens, err, dependencies);
     if(*err) return 0.0f;
 
     // compute result
@@ -41,7 +41,7 @@ float Widget::parseFormula(QString formula, bool* err) {
     return result;
 }
 
-float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, bool* error) {
+float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, bool* error, QSet<QPair<int,int>>& dependencies) {
     if(operation == NOTHING) return 0.0f;
 
     // parse arguments
@@ -52,7 +52,7 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
 
             std::vector<QString> tokens = tokenizeFormula(arg);
 
-            std::vector<QString> expression = evaluateExpression(tokens, error);
+            std::vector<QString> expression = evaluateExpression(tokens, error, dependencies);
             if(*error) return 0.0f;
 
             float result = EvaluationEngine::evaluate(expression, error);
@@ -72,6 +72,7 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
         }
         float row = args[0].toFloat();
         float col = args[1].toFloat();
+        dependencies.insert({row, col});
         QVariant v = view->model()->data(view->model()->index(row, col), Qt::DisplayRole);
         float value = v.toFloat();
         return value;
@@ -118,11 +119,10 @@ std::vector<QString> Widget::tokenizeFormula(QString formula) {
     return tokens;
 }
 
-std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, bool* err) {
+std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, bool* err, QSet<QPair<int,int>>& dependencies) {
     std::vector<QString> operations;
     FormulaOP activeOp;
     bool isOpActive = false;
-    bool isParOpen = false;
     std::vector<QString> args;
     QString arg = "";
     int parDepth = 0;
@@ -151,10 +151,7 @@ std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, boo
         } else {
             if(token == "(") {
                 parDepth++;
-                if(!isParOpen) {
-                    isParOpen = true;
-                    continue;
-                }
+                continue;
             } else if(token == ")") {
                 parDepth--;
 
@@ -167,7 +164,7 @@ std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, boo
 
                     // parse operation
                     bool error = false;
-                    float opResult = parseOperation(activeOp, args, &error);
+                    float opResult = parseOperation(activeOp, args, &error, dependencies);
                     if(!error) {
                         args.clear();
                         isOpActive = false;
@@ -200,6 +197,22 @@ FormulaOP Widget::strToOp(QString str) {
         return CELLREF;
     } else if(str == "SUM") {
         return SUM;
+    } else if(str == "POWER" || str == "POW") {
+        return POWER;
+    } else if(str == "SQRT") {
+        return SQRT;
+    } else if(str == "MOD") {
+        return MOD;
+    } else if(str == "ABS") {
+        return ABS;
+    } else if(str == "ROUND") {
+        return ROUND;
+    } else if(str == "FLOOR") {
+        return FLOOR;
+    } else if(str == "CEIL") {
+        return CEIL;
+    } else if(str == "PI") {
+        return PI;
     } else {
         // probably a number or invalid token
         return NOTHING;

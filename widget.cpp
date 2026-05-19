@@ -9,6 +9,7 @@
 #include <QStatusBar>
 #include <QLabel>
 #include <QMessageBox>
+#include <QLineEdit>
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -37,17 +38,22 @@ Widget::Widget(QWidget *parent)
     QAction* averageOpAction = opsMenu->addAction("Average");
     connect(averageOpAction, &QAction::triggered, this, &Widget::averageBtn);
 
-    //TODO: Remove (debug)
-    QAction* testParseAction = opsMenu->addAction("Test parse");
-    connect(testParseAction, &QAction::triggered, this, &Widget::testParseBtn);
-
     layout->addWidget(menuBar);
+
+    formulaBar = new QLineEdit(this);
+    layout->addWidget(formulaBar);
 
     view = new QTableView(this);
     view->setModel(new TableModel(this));
     view->setSortingEnabled(true);
     view->setEditTriggers(QAbstractItemView::DoubleClicked);
     view->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+
+    connect(view->model(), &QAbstractItemModel::dataChanged,
+            this, &Widget::onDataChanged);
+    connect(view->selectionModel(), &QItemSelectionModel::selectionChanged,
+            this, &Widget::onSelectionChangedSlot);
+    connect(formulaBar, &QLineEdit::returnPressed, this, &Widget::onFormulaBarEdited);
 
     QItemSelectionModel *selectionModel = view->selectionModel();
 
@@ -63,11 +69,57 @@ Widget::Widget(QWidget *parent)
 
 Widget::~Widget() {}
 
+void Widget::onFormulaBarEdited() {
+    QModelIndex current = view->currentIndex();
+    if (!current.isValid()) return;
+    view->model()->setData(current, formulaBar->text(), Qt::EditRole);
+}
+
+void Widget::onSelectionChangedSlot(const QItemSelection &selected, const QItemSelection &deselected) {
+    QModelIndexList indexes = selected.indexes();
+    if (indexes.isEmpty()) return;
+    QString raw = indexes.first().data(Qt::EditRole).toString();
+    formulaBar->setText(raw);
+}
+
 void Widget::resizeEvent(QResizeEvent *event) {
     QSize newSize = event->size();
     QSize oldSize = event->oldSize();
 
     QWidget::resizeEvent(event);
+}
+
+void Widget::onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight)
+{
+    auto model = ((TableModel*)view->model());
+
+    int row = topLeft.row();
+    int col = topLeft.column();
+
+    QVariant value = topLeft.data(Qt::EditRole); // get formula that user typed
+    QString text = value.toString();
+    formulaBar->setText(text);
+    if(text.startsWith("=")) {
+        bool error = false;
+        QSet<QPair<int,int>> deps;
+        float result = parseFormula(text, &error, deps);
+        QString cellValue = error ? "#ERROR" : QString("%0").arg(result);
+        model->computedValues[{row, col}] = cellValue;
+        model->clearDependencies({row, col});
+        for(QPair<int,int> dep: deps) {
+            model->addDependency(dep, {row, col});
+        }
+    }
+
+    auto dependents = model->getDependents({row,col});
+    if(dependents.count() > 0) {
+        for(auto dep: dependents) {
+            int row = dep.first;
+            int col = dep.second;
+
+            emit model->dataChanged(model->index(row, col), model->index(row, col));
+        }
+    }
 }
 
 void Widget::onRangeSelectionChanged(const QItemSelection &selected,
@@ -84,8 +136,5 @@ void Widget::averageBtn() {
 }
 
 void Widget::testParseBtn() {
-    bool error = false;
-    float result = parseFormula("=SUM(SUM(C(0,0), C(0,1)), 25 + 25 * 3, 200) * 10", &error);
-    if(!error) QMessageBox::information(this, "DEBUG", QString("%0").arg(result));
-    else QMessageBox::information(this, "Error", "Invalid expression");
+
 }
