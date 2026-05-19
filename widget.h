@@ -7,7 +7,8 @@
 
 enum FormulaOP {
     NOTHING,
-    CELLREF
+    CELLREF,
+    SUM
 };
 
 class Widget : public QWidget
@@ -33,5 +34,8 @@ private:
     QLabel *labelAverage;
     float parseFormula(QString formula, bool* err);
     float parseOperation(FormulaOP operation, std::vector<QString> args, bool* error);
+    FormulaOP strToOp(QString str);
+    std::vector<QString> tokenizeFormula(QString formula);
+    std::vector<QString> evaluateExpression(std::vector<QString> tokens, bool* err);
 };
 #endif // WIDGET_H

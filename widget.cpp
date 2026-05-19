@@ -85,6 +85,7 @@ void Widget::averageBtn() {
 
 void Widget::testParseBtn() {
     bool error = false;
-    float result = parseFormula("=C(1,0)+C(0,1)", &error);
-    QMessageBox::information(this, "DEBUG", QString("%0").arg(result));
+    float result = parseFormula("=SUM(SUM(C(0,0), C(0,1)), 100)", &error);
+    if(!error) QMessageBox::information(this, "DEBUG", QString("%0").arg(result));
+    else QMessageBox::information(this, "Error", "Invalid expression");
 }
