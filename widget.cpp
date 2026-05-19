@@ -1,16 +1,6 @@
 #include "widget.h"
 #include "tablemodel.h"
 
-#include <QTableView>
-#include <QResizeEvent>
-#include <QVBoxLayout>
-#include <QMenu>
-#include <QMenuBar>
-#include <QStatusBar>
-#include <QLabel>
-#include <QMessageBox>
-#include <QLineEdit>
-
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
 {

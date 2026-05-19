@@ -43,6 +43,7 @@ float Widget::parseFormula(QString formula, bool* err, QSet<QPair<int,int>>& dep
 
 float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, bool* error, QSet<QPair<int,int>>& dependencies) {
     if(operation == NOTHING) return 0.0f;
+    *error = false;
 
     // parse arguments
     int argIndex = 0;
@@ -66,12 +67,11 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
     switch(operation) {
     case CELLREF:
     {
-        if(args.size() != 2) {
-            *error = true;
-            return 0.0f;
-        }
-        float row = args[0].toFloat();
-        float col = args[1].toFloat();
+        if(args.size() != 2) { *error = true; return 0.0f; }
+        bool ok1, ok2;
+        float row = args[0].toFloat(&ok1);
+        float col = args[1].toFloat(&ok2);
+        if(!ok1 || !ok2) { *error = true; return 0.0f; }
         dependencies.insert({row, col});
         QVariant v = view->model()->data(view->model()->index(row, col), Qt::DisplayRole);
         float value = v.toFloat();
@@ -80,9 +80,79 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
     case SUM: {
         float result = 0.0f;
         for(QString arg: args) {
-            result += arg.toFloat();
+            bool ok;
+            float v = arg.toFloat(&ok);
+            if(!ok) { *error = true; return 0.0f; }
+            result += v;
         }
         return result;
+    }
+    case POWER:
+    {
+        float exp = 0;
+        if(args.size() == 1) {
+            exp = 2;
+        } else if(args.size() == 2) {
+            bool ok;
+            exp = args[1].toFloat(&ok);
+            if(!ok) { *error = true; return 0.0f; }
+        } else {
+            *error = true;
+            return 0.0f;
+        }
+        bool ok;
+        float value = args[0].toFloat(&ok);
+        if(!ok) { *error = true; return 0.0f; }
+        return std::pow(value, exp);
+    }
+    case SQRT:
+    {
+        if(args.size() != 1) { *error = true; return 0.0f; }
+        bool ok;
+        float value = args[0].toFloat(&ok);
+        if(!ok) { *error = true; return 0.0f; }
+        return std::sqrt(value);
+    }
+    case MOD: {
+        if(args.size() != 2) { *error = true; return 0.0f; }
+        bool ok1, ok2;
+        float value = args[0].toFloat(&ok1);
+        float div = args[1].toFloat(&ok2);
+        if(!ok1 || !ok2) { *error = true; return 0.0f; }
+        return std::fmod(value, div);
+    }
+    case ABS: {
+        if(args.size() != 1) { *error = true; return 0.0f; }
+        bool ok;
+        float value = args[0].toFloat(&ok);
+        if(!ok) { *error = true; return 0.0f; }
+        return std::abs(value);
+    }
+    case ROUND: {
+        if(args.size() != 2) { *error = true; return 0.0f; }
+        bool ok1, ok2;
+        float value = args[0].toFloat(&ok1);
+        float dec = args[1].toFloat(&ok2);
+        if(!ok1 || !ok2) { *error = true; return 0.0f; }
+        return std::round(value * std::pow(10,dec)) / std::pow(10,dec);
+    }
+    case FLOOR: {
+        if(args.size() != 1) { *error = true; return 0.0f; }
+        bool ok;
+        float value = args[0].toFloat(&ok);
+        if(!ok) { *error = true; return 0.0f; }
+        return std::floor(value);
+    }
+    case CEIL: {
+        if(args.size() != 1) { *error = true; return 0.0f; }
+        bool ok;
+        float value = args[0].toFloat(&ok);
+        if(!ok) { *error = true; return 0.0f; }
+        return std::ceil(value);
+    }
+    case PI:
+    {
+        return M_PI;
     }
     }
 }
