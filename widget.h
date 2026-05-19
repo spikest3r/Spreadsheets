@@ -2,7 +2,13 @@
 #define WIDGET_H
 
 #include <QWidget>
+#include <QLabel>
 #include <QTableView>
+
+enum FormulaOP {
+    NOTHING,
+    CELLREF
+};
 
 class Widget : public QWidget
 {
@@ -14,10 +20,18 @@ public:
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
+    void onRangeSelectionChanged(const QItemSelection &selected,
+                                         const QItemSelection &deselected);
 
 private:
     QTableView *view;
 
-    void averageOp();
+    void averageBtn();
+    void testParseBtn(); // TODO: Remove
+
+    float averageOp();
+    QLabel *labelAverage;
+    float parseFormula(QString formula, bool* err);
+    float parseOperation(FormulaOP operation, std::vector<QString> args, bool* error);
 };
 #endif // WIDGET_H
