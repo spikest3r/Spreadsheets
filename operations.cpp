@@ -47,7 +47,7 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
     // parse arguments
     int argIndex = 0;
     for(QString arg: args) {
-        if(arg.contains('(')) {
+        if(!arg.contains(QRegularExpression("^\\d+$"))) {
             // argument is a formula
 
             std::vector<QString> tokens = tokenizeFormula(arg);
@@ -104,11 +104,16 @@ std::vector<QString> Widget::tokenizeFormula(QString formula) {
             token = "";
             continue;
         } else if(c == '+' || c == '-' || c == '*' || c == '/') {
+            if(token.length() > 0) tokens.push_back(token.simplified());
             tokens.push_back(c);
+            token = "";
             continue;
         }
 
         token += c;
+    }
+    if(token.length() != 0) {
+        tokens.push_back(token.simplified());
     }
     return tokens;
 }
@@ -122,9 +127,15 @@ std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, boo
     QString arg = "";
     int parDepth = 0;
     for(QString token: tokens) {
+        if(token.length() == 0) continue; // skip malformed tokens
         if(!isOpActive) {
-            // check math signs
-            if(token == "+" || token == "-" || token == "*" || token == "/") {
+            // check math
+            if(token.contains(QRegularExpression("^\\d+$"))) {
+                operations.push_back(token);
+                continue;
+            }
+
+            if(token.contains("+") || token.contains("-") || token.contains("*") || token.contains("/")) {
                 operations.push_back(token);
                 continue;
             }
