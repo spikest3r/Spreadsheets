@@ -168,6 +168,7 @@ QString Widget::getErrorMessage(SmartFillError error) {
     case INVALIDDATA:    return "Selection contains non-numeric data.";
     case BADPATTERN:     return "No pattern detected. Try Simple Fill (Shift+F2).";
     case MIXED_TYPES: return "Selection mixes formulas and values.";
+    case NOCELLREFS: return "Formula contains no cell references to offset.";
     case NOTIMPLEMENTED: return "Not implemented yet.";
     }
 }

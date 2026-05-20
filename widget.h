@@ -32,14 +32,23 @@ enum FormulaOP {
     PI
 };
 
+// TODO: enum FormulaParserError
+
 enum SmartFillError {
     SFE_NONE,
+
+    // standard errors
     NODATA,
     TWODIMRANGE,
     INVALIDDATA,
     BADPATTERN,
     MIXED_TYPES,
-    NOTIMPLEMENTED // debug
+
+    // formula fill errors
+    NOCELLREFS,
+
+    // debug
+    NOTIMPLEMENTED
 };
 
 enum SmartFillOperation {
@@ -50,7 +59,12 @@ enum SmartFillOperation {
     COPY
 };
 
-// TODO: enum FormulaParserError
+enum FillDirection {
+    ROW_POS,  // left to right
+    ROW_NEG,  // right to left
+    COL_POS,  // top to bottom
+    COL_NEG   // bottom to top
+};
 
 class Widget : public QWidget
 {
@@ -81,6 +95,7 @@ private:
     int countOp(); // count of items in range
 
     void smartFillOperation(SmartFillError& error);
+    void formulaSmartFill(SmartFillError& error, int rowCount, int colCount);
 
     QLabel *labelAverage;
     QLabel *labelSum;

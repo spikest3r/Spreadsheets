@@ -198,7 +198,7 @@ std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, boo
         } else {
             if(token == "(") {
                 parDepth++;
-                continue;
+                if(parDepth < 2) continue;
             } else if(token == ")") {
                 parDepth--;
 

@@ -1,5 +1,13 @@
 #include "widget.h"
 
+FillDirection getFillDirection(const QModelIndexList &indexes, int rowCount) {
+    if (rowCount == 1) {
+        return indexes.first().column() < indexes.last().column() ? ROW_POS : ROW_NEG;
+    } else {
+        return indexes.first().row() < indexes.last().row() ? COL_POS : COL_NEG;
+    }
+}
+
 void Widget::smartFillOperation(SmartFillError& error) {
     QItemSelectionModel *sel = view->selectionModel();
     QModelIndexList indexes = sel->selectedIndexes();
@@ -41,7 +49,7 @@ void Widget::smartFillOperation(SmartFillError& error) {
     for (const QModelIndex &idx : indexes) {
         auto str = idx.data(Qt::EditRole).toString();
         if(str.startsWith("=")) hasEquals = true;
-        else hasRegularValue = true;
+        else if(!str.isEmpty()) hasRegularValue = true;
     }
 
     // check types
@@ -51,8 +59,7 @@ void Widget::smartFillOperation(SmartFillError& error) {
         return;
     } else if(hasEquals) {
         // formula progression
-        // TODO: Handle formulas
-        error = NOTIMPLEMENTED;
+        formulaSmartFill(error, rowCount, columnCount);
         return;
     }
 
@@ -141,6 +148,89 @@ void Widget::smartFillOperation(SmartFillError& error) {
         }
 
         if(!fill) previousValue = value;
+        count++;
+    }
+}
+
+void Widget::formulaSmartFill(SmartFillError& error, int rowCount, int columnCount) {
+    QItemSelectionModel *sel = view->selectionModel();
+    QModelIndexList indexes = sel->selectedIndexes();
+    // previous checks have been ran, data should be safe
+
+    // tokenize first formula
+    QModelIndex first = indexes.first();
+    QString formula = first.data(Qt::EditRole).toString();
+    std::vector<QString> tokens = tokenizeFormula(formula);
+
+    // find positions of all cellrefs in formula (pos of C itself)
+    std::vector<int> cellrefs;
+
+    int j = 0;
+    for(QString token: tokens) {
+        if(token == "C") {
+            cellrefs.push_back(j);
+        }
+        j++;
+    }
+    if(cellrefs.size() == 0) {
+        error = NOCELLREFS;
+        return;
+    }
+
+    // get fill direction
+    FillDirection fd = getFillDirection(indexes, rowCount);
+    int rowOffset = 0;
+    int colOffset = 0;
+    switch(fd) {
+    case ROW_POS:
+    {
+        colOffset = 1;
+        break;
+    }
+    case ROW_NEG:
+    {
+        colOffset = -1;
+        break;
+    }
+    case COL_POS:
+    {
+        rowOffset = 1;
+        break;
+    }
+    case COL_NEG:
+    {
+        rowOffset = -1;
+        break;
+    }
+    }
+
+    // fill formulas
+    int count = 0;
+    for (const QModelIndex &idx : indexes) {
+        if(count > 0) { // skip first formula
+            // C(0,0)
+            // x + 2, y + 4
+            bool ok;
+
+            for(auto cellref: cellrefs) {
+                int row = tokens[cellref + 2].toFloat(&ok);
+                int col = tokens[cellref + 4].toFloat(&ok);
+
+                if(!ok) {
+                    error = INVALIDDATA;
+                    return;
+                }
+
+                row += rowOffset;
+                col += colOffset;
+
+                tokens[cellref + 2] = QString::number(row);
+                tokens[cellref + 4] = QString::number(col);
+            }
+
+            QString result = "=" + QStringList(tokens.begin(), tokens.end()).join("");
+            view->model()->setData(idx, result);
+        }
         count++;
     }
 }
