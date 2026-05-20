@@ -32,6 +32,26 @@ enum FormulaOP {
     PI
 };
 
+enum SmartFillError {
+    SFE_NONE,
+    NODATA,
+    TWODIMRANGE,
+    INVALIDDATA,
+    BADPATTERN,
+    MIXED_TYPES,
+    NOTIMPLEMENTED // debug
+};
+
+enum SmartFillOperation {
+    SFO_NONE,
+    ARITHMETIC_PROGRESSION,
+    GEOMETRICAL_PROGRESSION,
+    FORMULA_OFFSET,
+    COPY
+};
+
+// TODO: enum FormulaParserError
+
 class Widget : public QWidget
 {
     Q_OBJECT
@@ -54,10 +74,13 @@ private:
 
     void averageBtn();
     void sumBtn();
+    void smartFillBtn();
 
     float averageOp(bool* ok); // range average
     float sumOp(bool* ok); // range sum
     int countOp(); // count of items in range
+
+    void smartFillOperation(SmartFillError& error);
 
     QLabel *labelAverage;
     QLabel *labelSum;
@@ -67,5 +90,7 @@ private:
     FormulaOP strToOp(QString str);
     std::vector<QString> tokenizeFormula(QString formula);
     std::vector<QString> evaluateExpression(std::vector<QString> tokens, bool* err, QSet<QPair<int,int>>& dependencies);
+
+    QString getErrorMessage(SmartFillError error);
 };
 #endif // WIDGET_H

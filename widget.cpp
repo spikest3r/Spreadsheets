@@ -25,10 +25,15 @@ Widget::Widget(QWidget *parent)
     statusBar->addWidget(labelAverage);
 
     QMenu* opsMenu = menuBar->addMenu("Data");
-    QAction* rangeAverageAction = opsMenu->addAction("Range average");
-    QAction* rangeSumAction = opsMenu->addAction("Range sum");
+    QMenu* rangeMenu = opsMenu->addMenu("Range");
+    QAction* rangeAverageAction = rangeMenu->addAction("Range average");
+    QAction* rangeSumAction = rangeMenu->addAction("Range sum");
+    opsMenu->addSeparator();
+    QAction* smartFillAction = opsMenu->addAction("Smart Fill");
+    smartFillAction->setShortcut(QKeySequence("F2"));
     connect(rangeAverageAction, &QAction::triggered, this, &Widget::averageBtn);
     connect(rangeSumAction, &QAction::triggered, this, &Widget::sumBtn);
+    connect(smartFillAction, &QAction::triggered, this, &Widget::smartFillBtn);
 
     layout->addWidget(menuBar);
 
@@ -144,4 +149,25 @@ void Widget::sumBtn() {
     }
     if(std::isnan(sum)) sum = 0.0f;
     QMessageBox::information(this, "Range sum", QString("%0").arg(sum));
+}
+
+void Widget::smartFillBtn() {
+    SmartFillError err = SFE_NONE;
+    smartFillOperation(err);
+    if(err != SFE_NONE) {
+        QString message = getErrorMessage(err);
+        QMessageBox::warning(this, "Smart Fill error", message);
+    }
+}
+
+QString Widget::getErrorMessage(SmartFillError error) {
+    switch (error) {
+    case SFE_NONE:       return "";
+    case NODATA:         return "No data to fill from.";
+    case TWODIMRANGE:    return "Select a single row or column.";
+    case INVALIDDATA:    return "Selection contains non-numeric data.";
+    case BADPATTERN:     return "No pattern detected. Try Simple Fill (Shift+F2).";
+    case MIXED_TYPES: return "Selection mixes formulas and values.";
+    case NOTIMPLEMENTED: return "Not implemented yet.";
+    }
 }
