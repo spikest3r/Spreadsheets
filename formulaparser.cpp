@@ -25,7 +25,7 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
     // parse arguments
     int argIndex = 0;
     for(QString arg: args) {
-        if(!arg.contains(QRegularExpression("^\\d+$"))) {
+        if(!arg.contains(QRegularExpression("^\\$?\\d+$"))) {
             // argument is a formula
 
             std::vector<QString> tokens = tokenizeFormula(arg);
@@ -46,8 +46,11 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
     {
         if(args.size() != 2) { *error = true; return 0.0f; }
         bool ok1, ok2;
-        float row = args[0].toFloat(&ok1);
-        float col = args[1].toFloat(&ok2);
+        // leave out absolute ref marker for toFloat
+        auto arg0 = args[0].replace("$", "");
+        auto arg1 = args[1].replace("$", "");
+        float row = arg0.toFloat(&ok1);
+        float col = arg1.toFloat(&ok2);
         if(!ok1 || !ok2) { *error = true; return 0.0f; }
         dependencies.insert({row, col});
         QVariant v = view->model()->data(view->model()->index(row, col), Qt::DisplayRole);

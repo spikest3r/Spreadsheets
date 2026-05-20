@@ -20,9 +20,22 @@ Widget::Widget(QWidget *parent)
         );
 
     QStatusBar *statusBar = new QStatusBar(this);
+
     labelAverage = new QLabel(this);
-    labelAverage->setText("Average");
+    labelAverage->setContentsMargins(8, 0, 8, 0);
     statusBar->addWidget(labelAverage);
+
+    labelSum = new QLabel(this);
+    labelSum->setContentsMargins(8, 0, 8, 0);
+    statusBar->addWidget(labelSum);
+
+    labelCount = new QLabel(this);
+    labelCount->setContentsMargins(8, 0, 8, 0);
+    statusBar->addWidget(labelCount);
+
+    labelAverage->setVisible(false);
+    labelSum->setVisible(false);
+    labelCount->setVisible(false);
 
     QMenu* opsMenu = menuBar->addMenu("Data");
     QMenu* rangeMenu = opsMenu->addMenu("Range");
@@ -43,8 +56,10 @@ Widget::Widget(QWidget *parent)
     view = new QTableView(this);
     view->setModel(new TableModel(this));
     view->setSortingEnabled(true);
-    view->setEditTriggers(QAbstractItemView::DoubleClicked);
     view->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
+    view->setEditTriggers(QAbstractItemView::AnyKeyPressed |
+                          QAbstractItemView::DoubleClicked);
+    view->installEventFilter(this);
 
     connect(view->model(), &QAbstractItemModel::dataChanged,
             this, &Widget::onDataChanged);
@@ -123,10 +138,53 @@ void Widget::onRangeSelectionChanged(const QItemSelection &selected,
                                       const QItemSelection &deselected) {
     Q_UNUSED(deselected);
 
+    int count = countOp();
+    if(count < 2) {
+        labelAverage->setVisible(false);
+        labelSum->setVisible(false);
+        labelCount->setVisible(false);
+        return;
+    } else {
+        labelAverage->setVisible(true);
+        labelSum->setVisible(true);
+        labelCount->setVisible(true);
+    }
+
     bool ok = false;
+
     float average = averageOp(&ok);
+    float sum = sumOp(&ok);
+
     if(!ok) return;
-    labelAverage->setText(QString("%0").arg(average));
+
+    if(std::isnan(average)) average = 0.0f;
+
+    labelAverage->setText("Average: " + QString::number(average, 'f', 0));
+    labelSum->setText("Sum: " + QString::number(sum, 'f', 0));
+    labelCount->setText("Count: " + QString::number(count, 'f', 0));
+}
+
+bool Widget::eventFilter(QObject *obj, QEvent *event) {
+    if (obj == view && event->type() == QEvent::KeyPress) {
+        QKeyEvent *key = static_cast<QKeyEvent*>(event);
+        QModelIndex idx = view->currentIndex();
+
+        QModelIndex nextIdx;
+        if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) {
+            nextIdx = view->model()->index(idx.row() + 1, idx.column());
+        } else if (key->key() == Qt::Key_Tab) {
+            nextIdx = view->model()->index(idx.row(), idx.column() + 1);
+        }
+
+        if (nextIdx.isValid()) {
+            QMetaObject::invokeMethod(view, [this, nextIdx]() {
+                view->setCurrentIndex(nextIdx);
+            }, Qt::QueuedConnection);
+
+            return true; // Mark event as handled
+        }
+    }
+    return QWidget::eventFilter(obj, event);
 }
 
 void Widget::averageBtn() {
@@ -137,7 +195,7 @@ void Widget::averageBtn() {
         return;
     }
     if(std::isnan(av)) av = 0.0f;
-    QMessageBox::information(this, "Range average", QString("%0").arg(av));
+    QMessageBox::information(this, "Range average", QString::number(av, 'f', 0));
 }
 
 void Widget::sumBtn() {
@@ -148,7 +206,7 @@ void Widget::sumBtn() {
         return;
     }
     if(std::isnan(sum)) sum = 0.0f;
-    QMessageBox::information(this, "Range sum", QString("%0").arg(sum));
+    QMessageBox::information(this, "Range sum", QString::number(sum, 'f', 0));
 }
 
 void Widget::smartFillBtn() {

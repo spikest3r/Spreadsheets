@@ -81,6 +81,7 @@ protected:
     void onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight);
     void onSelectionChangedSlot(const QItemSelection &selected, const QItemSelection &deselected);
     void onFormulaBarEdited();
+    bool eventFilter(QObject *obj, QEvent *event);
 
 private:
     QTableView *view;

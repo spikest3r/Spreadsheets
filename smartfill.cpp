@@ -213,19 +213,35 @@ void Widget::formulaSmartFill(SmartFillError& error, int rowCount, int columnCou
             bool ok;
 
             for(auto cellref: cellrefs) {
-                int row = tokens[cellref + 2].toFloat(&ok);
-                int col = tokens[cellref + 4].toFloat(&ok);
+                auto rowStr = tokens[cellref + 2];
+                auto colStr = tokens[cellref + 4];
+
+                bool rowAbs = false;
+                bool colAbs = false;
+
+                if(rowStr.startsWith("$")) {
+                    rowStr = rowStr.replace("$", "");
+                    rowAbs = true;
+                }
+
+                if(colStr.startsWith("$")) {
+                    colStr = colStr.replace("$", "");
+                    colAbs = true;
+                }
+
+                int row = rowStr.toFloat(&ok);
+                int col = colStr.toFloat(&ok);
 
                 if(!ok) {
                     error = INVALIDDATA;
                     return;
                 }
 
-                row += rowOffset;
-                col += colOffset;
+                if(!rowAbs) row += rowOffset;
+                if(!colAbs) col += colOffset;
 
-                tokens[cellref + 2] = QString::number(row);
-                tokens[cellref + 4] = QString::number(col);
+                tokens[cellref + 2] = (rowAbs ? "$" : "") + QString::number(row);
+                tokens[cellref + 4] = (colAbs ? "$" : "") + QString::number(col);
             }
 
             QString result = "=" + QStringList(tokens.begin(), tokens.end()).join("");
