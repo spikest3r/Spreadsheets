@@ -53,10 +53,15 @@ private:
     QLineEdit* formulaBar;
 
     void averageBtn();
-    void testParseBtn(); // TODO: Remove
+    void sumBtn();
 
-    float averageOp();
+    float averageOp(bool* ok); // range average
+    float sumOp(bool* ok); // range sum
+    int countOp(); // count of items in range
+
     QLabel *labelAverage;
+    QLabel *labelSum;
+    QLabel *labelCount;
     float parseFormula(QString formula, bool* err, QSet<QPair<int,int>>& dependencies);
     float parseOperation(FormulaOP operation, std::vector<QString> args, bool* error, QSet<QPair<int,int>>& dependencies);
     FormulaOP strToOp(QString str);

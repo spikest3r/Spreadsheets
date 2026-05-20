@@ -24,9 +24,11 @@ Widget::Widget(QWidget *parent)
     labelAverage->setText("Average");
     statusBar->addWidget(labelAverage);
 
-    QMenu* opsMenu = menuBar->addMenu("Operations");
-    QAction* averageOpAction = opsMenu->addAction("Average");
-    connect(averageOpAction, &QAction::triggered, this, &Widget::averageBtn);
+    QMenu* opsMenu = menuBar->addMenu("Data");
+    QAction* rangeAverageAction = opsMenu->addAction("Range average");
+    QAction* rangeSumAction = opsMenu->addAction("Range sum");
+    connect(rangeAverageAction, &QAction::triggered, this, &Widget::averageBtn);
+    connect(rangeSumAction, &QAction::triggered, this, &Widget::sumBtn);
 
     layout->addWidget(menuBar);
 
@@ -116,15 +118,30 @@ void Widget::onRangeSelectionChanged(const QItemSelection &selected,
                                       const QItemSelection &deselected) {
     Q_UNUSED(deselected);
 
-    float average = averageOp();
+    bool ok = false;
+    float average = averageOp(&ok);
+    if(!ok) return;
     labelAverage->setText(QString("%0").arg(average));
 }
 
 void Widget::averageBtn() {
-    float av = averageOp();
+    bool ok = false;
+    float av = averageOp(&ok);
+    if(!ok) {
+        QMessageBox::warning(this, "Error", QString("No range selected. Highlight cells before applying this operation."));
+        return;
+    }
+    if(std::isnan(av)) av = 0.0f;
     QMessageBox::information(this, "Range average", QString("%0").arg(av));
 }
 
-void Widget::testParseBtn() {
-
+void Widget::sumBtn() {
+    bool ok = false;
+    float sum = sumOp(&ok);
+    if(!ok) {
+        QMessageBox::warning(this, "Error", QString("No range selected. Highlight cells before applying this operation."));
+        return;
+    }
+    if(std::isnan(sum)) sum = 0.0f;
+    QMessageBox::information(this, "Range sum", QString("%0").arg(sum));
 }
