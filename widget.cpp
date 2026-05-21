@@ -65,6 +65,8 @@ Widget::Widget(QWidget *parent)
     QMenu* styleMenu = menuBar->addMenu("Style");
     QAction* cellBgAction = styleMenu->addAction("Set cell background color");
     connect(cellBgAction, &QAction::triggered, this, &Widget::bgColorBtn);
+    QAction* cellFgAction = styleMenu->addAction("Set cell text color");
+    connect(cellFgAction, &QAction::triggered, this, &Widget::fgColorBtn);
 
     layout->addWidget(menuBar);
 
@@ -82,7 +84,9 @@ Widget::Widget(QWidget *parent)
 
     QPalette palette = QApplication::palette();
     QColor defaultBgColor = palette.color(QPalette::Base);
+    QColor defaultFgColor = palette.color(QPalette::Text);
     model->defaultBg = defaultBgColor;
+    model->defaultFg = defaultFgColor;
 
     connect(view->model(), &QAbstractItemModel::dataChanged,
             this, &Widget::onDataChanged);
@@ -290,7 +294,7 @@ void Widget::redoBtn() {
 
 
 void Widget::bgColorBtn() {
-    QColor initialColor = Qt::white;
+    QColor initialColor = Qt::black;
 
     QColor selectedColor = QColorDialog::getColor(
         initialColor,               // Default selected color
@@ -316,6 +320,38 @@ void Widget::bgColorBtn() {
         }
 
         pushStatusMessage("Updated cell color");
+    } else {
+        pushStatusMessage("Color selection canceled");
+    }
+}
+
+void Widget::fgColorBtn() {
+    QColor initialColor = Qt::white;
+
+    QColor selectedColor = QColorDialog::getColor(
+        initialColor,               // Default selected color
+        this,                       // Parent widget
+        "Select Text Color"    // Dialog title
+        );
+
+    if (selectedColor.isValid()) {
+        auto model = (TableModel*)view->model();
+        auto selected = view->selectionModel();
+
+        QModelIndexList indexes = selected->selectedIndexes();
+        if (indexes.isEmpty()) {
+            pushStatusMessage("No cells selected");
+            return;
+        }
+
+        for(const QModelIndex &idx : indexes) {
+            int r = idx.row();
+            int c = idx.column();
+
+            model->setTextColor({r,c},selectedColor);
+        }
+
+        pushStatusMessage("Updated text color");
     } else {
         pushStatusMessage("Color selection canceled");
     }

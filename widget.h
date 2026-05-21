@@ -102,6 +102,7 @@ private:
     void undoBtn();
     void redoBtn();
     void bgColorBtn();
+    void fgColorBtn();
 
     float averageOp(bool* ok); // range average
     float sumOp(bool* ok); // range sum

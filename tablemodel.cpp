@@ -27,6 +27,12 @@ QVariant TableModel::data(const QModelIndex &index, int role) const
         }
     }
 
+    if (role == Qt::ForegroundRole) {
+        if (r < data_.size() && c < data_[r].size()) {
+            return data_[r][c].textColor;
+        }
+    }
+
     if (role == Qt::EditRole)
     {
         if (r < data_.size() && c < data_[r].size())
@@ -57,20 +63,7 @@ bool TableModel::setData(const QModelIndex &index, const QVariant &value, int ro
     int c = index.column();
 
     // ensure storage exists
-    bool resized = false;
-    if (r >= data_.size()) {
-        data_.resize(r + 1);
-        resized = true;
-    }
-
-    if (c >= data_[r].size()) {
-        data_[r].resize(c + 1);
-        resized = true;
-    }
-
-    if(resized) {
-        data_[r][c].cellColor = defaultBg;
-    }
+    checkSize(r, c);
 
     if(!redoStack.empty()) redoStack.clear();
 
@@ -116,6 +109,7 @@ bool TableModel::undoLastEdit() {
     redoOp.cell = {row, col};
     redoOp.previousValue.value = this->index(row, col).data(Qt::EditRole);
     redoOp.previousValue.cellColor = data_[row][col].cellColor;
+    redoOp.previousValue.textColor = data_[row][col].textColor;
     redoStack.push_back(redoOp);
 
     data_[row][col] = op.previousValue;
@@ -137,6 +131,7 @@ bool TableModel::redoEdit() {
     undoOp.cell = {row, col};
     undoOp.previousValue.value = this->index(row, col).data(Qt::EditRole);
     undoOp.previousValue.cellColor = data_[row][col].cellColor;
+    undoOp.previousValue.textColor = data_[row][col].textColor;
     editStack.push_back(undoOp);
 
     data_[row][col] = op.previousValue;
@@ -149,20 +144,7 @@ void TableModel::setCellColor(QPair<int, int> cell, QColor color) {
     int r = cell.first;
     int c = cell.second;
 
-    bool resized = false;
-    if (r >= data_.size()) {
-        data_.resize(r + 1);
-        resized = true;
-    }
-
-    if (c >= data_[r].size()) {
-        data_[r].resize(c + 1);
-        resized = true;
-    }
-
-    if(resized) {
-        data_[r][c].cellColor = defaultBg;
-    }
+    checkSize(r, c);
 
     if(!redoStack.empty()) redoStack.clear();
 
@@ -173,4 +155,45 @@ void TableModel::setCellColor(QPair<int, int> cell, QColor color) {
 
     data_[r][c].cellColor = color;
     emit this->dataChanged(this->index(r, c), this->index(r, c));
+}
+
+void TableModel::setTextColor(QPair<int, int> cell, QColor color) {
+    int r = cell.first;
+    int c = cell.second;
+
+    checkSize(r, c);
+
+    if(!redoStack.empty()) redoStack.clear();
+
+    EditOperation op;
+    op.cell = {r, c};
+    op.previousValue = data_[r][c];
+    editStack.push_back(op);
+
+    data_[r][c].textColor = color;
+    emit this->dataChanged(this->index(r, c), this->index(r, c));
+}
+
+void TableModel::checkSize(int r, int c) {
+    size_t oldRows = data_.size();
+    if (r >= oldRows) {
+        data_.resize(r + 1);
+        // Initialize all new rows
+        for (size_t ri = oldRows; ri < data_.size(); ++ri) {
+            for (auto& cell : data_[ri]) {
+                cell.cellColor = defaultBg;
+                cell.textColor = defaultFg;
+            }
+        }
+    }
+
+    size_t oldCols = data_[r].size();
+    if (c >= oldCols) {
+        data_[r].resize(c + 1);
+        // Initialize all new cells in this row
+        for (size_t ci = oldCols; ci < data_[r].size(); ++ci) {
+            data_[r][ci].cellColor = defaultBg;
+            data_[r][ci].textColor = defaultFg;
+        }
+    }
 }

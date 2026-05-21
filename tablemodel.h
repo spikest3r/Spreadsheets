@@ -11,6 +11,7 @@
 struct Cell {
     QVariant value;
     QColor cellColor;
+    QColor textColor;
 };
 
 struct EditOperation {
@@ -54,8 +55,12 @@ public:
     bool redoEdit();
 
     void setCellColor(QPair<int, int> cell, QColor color);
+    void setTextColor(QPair<int, int> cell, QColor color);
+
+    void checkSize(int r, int c);
 
     QColor defaultBg;
+    QColor defaultFg;
 };
 
 #endif // TABLEMODEL_H
