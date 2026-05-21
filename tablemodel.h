@@ -5,6 +5,11 @@
 #include <QModelIndex>
 #include <QPair>
 
+struct EditOperation {
+    QPair<int, int> cell;
+    QVariant previousValue;
+};
+
 inline size_t qHash(const QPair<int,int> &key, size_t seed = 0) {
     return qHash(key.first, seed) ^ qHash(key.second, seed << 1);
 }
@@ -27,6 +32,8 @@ public:
 
 protected:
     QVector<QVector<QVariant>> data_;
+    QVector<EditOperation> editStack;
+    QVector<EditOperation> redoStack; // push what was undid, purge on new edit
 
 public:
     QHash<QPair<int,int>, QList<QPair<int,int>>> dependencyGraph;
@@ -35,6 +42,8 @@ public:
     void removeDependency(QPair<int,int> dependency, QPair<int,int> dependent);
     void clearDependencies(QPair<int,int> dependent);
     QList<QPair<int,int>> getDependents(QPair<int,int> dependency);
+    bool undoLastEdit();
+    bool redoEdit();
 };
 
 #endif // TABLEMODEL_H

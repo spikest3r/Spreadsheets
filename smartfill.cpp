@@ -8,7 +8,7 @@ FillDirection getFillDirection(const QModelIndexList &indexes, int rowCount) {
     }
 }
 
-void Widget::smartFillOperation(SmartFillError& error) {
+void Widget::smartFillOperation(SmartFillError& error, SmartFillOperation& operation) {
     QItemSelectionModel *sel = view->selectionModel();
     QModelIndexList indexes = sel->selectedIndexes();
 
@@ -59,6 +59,7 @@ void Widget::smartFillOperation(SmartFillError& error) {
         return;
     } else if(hasEquals) {
         // formula progression
+        operation = FORMULA_OFFSET;
         formulaSmartFill(error, rowCount, columnCount);
         return;
     }
@@ -150,6 +151,8 @@ void Widget::smartFillOperation(SmartFillError& error) {
         if(!fill) previousValue = value;
         count++;
     }
+
+    operation = op;
 }
 
 void Widget::formulaSmartFill(SmartFillError& error, int rowCount, int columnCount) {

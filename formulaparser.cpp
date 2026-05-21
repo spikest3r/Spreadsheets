@@ -3,24 +3,29 @@
 
 // Formula parsing
 
-float Widget::parseFormula(QString formula, bool* err, QSet<QPair<int,int>>& dependencies) {
+float Widget::parseFormula(QString formula, FormulaParserError& err, QSet<QPair<int,int>>& dependencies) {
     // break into tokens
     std::vector<QString> tokens = tokenizeFormula(formula);
 
     // parse tokens into math engine ready ops
     std::vector<QString> expression = evaluateExpression(tokens, err, dependencies);
-    if(*err) return 0.0f;
+    if(err != FPE_NONE) {
+        return 0.0f;
+    }
 
     // compute result
-    float result = EvaluationEngine::evaluate(expression, err);
-    if(*err) return 0.0f;
+    bool error = false;
+    float result = EvaluationEngine::evaluate(expression, &error);
+    if(error) {
+        error = MATH_EVALUATION_ERROR;
+        return 0.0f;
+    }
 
     return result;
 }
 
-float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, bool* error, QSet<QPair<int,int>>& dependencies) {
+float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, FormulaParserError& error, QSet<QPair<int,int>>& dependencies) {
     if(operation == NOTHING) return 0.0f;
-    *error = false;
 
     // parse arguments
     int argIndex = 0;
@@ -31,10 +36,17 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
             std::vector<QString> tokens = tokenizeFormula(arg);
 
             std::vector<QString> expression = evaluateExpression(tokens, error, dependencies);
-            if(*error) return 0.0f;
+            if(error != FPE_NONE) {
+                return 0.0f;
+            }
 
-            float result = EvaluationEngine::evaluate(expression, error);
-            if(*error) return 0.0f;
+            bool error = false;
+            float result = EvaluationEngine::evaluate(expression, &error);
+            if(error)
+            {
+                error = MATH_EVALUATION_ERROR;
+                return 0.0f;
+            }
 
             args[argIndex] = QString("%0").arg(result);
         }
@@ -44,14 +56,14 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
     switch(operation) {
     case CELLREF:
     {
-        if(args.size() != 2) { *error = true; return 0.0f; }
+        if(args.size() != 2) { error = INCORRECT_ARGUMENT_COUNT; return 0.0f; }
         bool ok1, ok2;
         // leave out absolute ref marker for toFloat
         auto arg0 = args[0].replace("$", "");
         auto arg1 = args[1].replace("$", "");
         float row = arg0.toFloat(&ok1);
         float col = arg1.toFloat(&ok2);
-        if(!ok1 || !ok2) { *error = true; return 0.0f; }
+        if(!ok1 || !ok2) { error = NON_NUMERIC_VALUE; return 0.0f; }
         dependencies.insert({row, col});
         QVariant v = view->model()->data(view->model()->index(row, col), Qt::DisplayRole);
         float value = v.toFloat();
@@ -62,7 +74,7 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
         for(QString arg: args) {
             bool ok;
             float v = arg.toFloat(&ok);
-            if(!ok) { *error = true; return 0.0f; }
+            if(!ok) { error = NON_NUMERIC_VALUE; return 0.0f; }
             result += v;
         }
         return result;
@@ -75,59 +87,59 @@ float Widget::parseOperation(FormulaOP operation, std::vector<QString> args, boo
         } else if(args.size() == 2) {
             bool ok;
             exp = args[1].toFloat(&ok);
-            if(!ok) { *error = true; return 0.0f; }
+            if(!ok) { error = NON_NUMERIC_VALUE; return 0.0f; }
         } else {
-            *error = true;
+            error = INCORRECT_ARGUMENT_COUNT;
             return 0.0f;
         }
         bool ok;
         float value = args[0].toFloat(&ok);
-        if(!ok) { *error = true; return 0.0f; }
+        if(!ok) { error = NON_NUMERIC_VALUE; return 0.0f; }
         return std::pow(value, exp);
     }
     case SQRT:
     {
-        if(args.size() != 1) { *error = true; return 0.0f; }
+        if(args.size() != 1) { error = INCORRECT_ARGUMENT_COUNT; return 0.0f; }
         bool ok;
         float value = args[0].toFloat(&ok);
-        if(!ok) { *error = true; return 0.0f; }
+        if(!ok) { error = NON_NUMERIC_VALUE; return 0.0f; }
         return std::sqrt(value);
     }
     case MOD: {
-        if(args.size() != 2) { *error = true; return 0.0f; }
+        if(args.size() != 2) { error = INCORRECT_ARGUMENT_COUNT; return 0.0f; }
         bool ok1, ok2;
         float value = args[0].toFloat(&ok1);
         float div = args[1].toFloat(&ok2);
-        if(!ok1 || !ok2) { *error = true; return 0.0f; }
+        if(!ok1 || !ok2) { error = NON_NUMERIC_VALUE; return 0.0f; }
         return std::fmod(value, div);
     }
     case ABS: {
-        if(args.size() != 1) { *error = true; return 0.0f; }
+        if(args.size() != 1) { error = INCORRECT_ARGUMENT_COUNT; return 0.0f; }
         bool ok;
         float value = args[0].toFloat(&ok);
-        if(!ok) { *error = true; return 0.0f; }
+        if(!ok) { error = NON_NUMERIC_VALUE; return 0.0f; }
         return std::abs(value);
     }
     case ROUND: {
-        if(args.size() != 2) { *error = true; return 0.0f; }
+        if(args.size() != 2) { error = INCORRECT_ARGUMENT_COUNT; return 0.0f; }
         bool ok1, ok2;
         float value = args[0].toFloat(&ok1);
         float dec = args[1].toFloat(&ok2);
-        if(!ok1 || !ok2) { *error = true; return 0.0f; }
+        if(!ok1 || !ok2) { error = NON_NUMERIC_VALUE; return 0.0f; }
         return std::round(value * std::pow(10,dec)) / std::pow(10,dec);
     }
     case FLOOR: {
-        if(args.size() != 1) { *error = true; return 0.0f; }
+        if(args.size() != 1) { error = INCORRECT_ARGUMENT_COUNT; return 0.0f; }
         bool ok;
         float value = args[0].toFloat(&ok);
-        if(!ok) { *error = true; return 0.0f; }
+        if(!ok) { error = NON_NUMERIC_VALUE; return 0.0f; }
         return std::floor(value);
     }
     case CEIL: {
-        if(args.size() != 1) { *error = true; return 0.0f; }
+        if(args.size() != 1) { error = INCORRECT_ARGUMENT_COUNT; return 0.0f; }
         bool ok;
         float value = args[0].toFloat(&ok);
-        if(!ok) { *error = true; return 0.0f; }
+        if(!ok) { error = NON_NUMERIC_VALUE; return 0.0f; }
         return std::ceil(value);
     }
     case PI:
@@ -169,7 +181,7 @@ std::vector<QString> Widget::tokenizeFormula(QString formula) {
     return tokens;
 }
 
-std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, bool* err, QSet<QPair<int,int>>& dependencies) {
+std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, FormulaParserError& err, QSet<QPair<int,int>>& dependencies) {
     std::vector<QString> operations;
     FormulaOP activeOp;
     bool isOpActive = false;
@@ -193,7 +205,7 @@ std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, boo
             // next operation
             FormulaOP fop = strToOp(token);
             if(fop == NOTHING) {
-                *err = true;
+                err = INVALID_SYNTAX;
                 return {};
             }
             activeOp = fop;
@@ -213,15 +225,13 @@ std::vector<QString> Widget::evaluateExpression(std::vector<QString> tokens, boo
                     }
 
                     // parse operation
-                    bool error = false;
-                    float opResult = parseOperation(activeOp, args, &error, dependencies);
-                    if(!error) {
+                    float opResult = parseOperation(activeOp, args, err, dependencies);
+                    if(err == FPE_NONE) {
                         args.clear();
                         isOpActive = false;
                         operations.push_back(QString("%0").arg(opResult));
                     } else {
                         // operation evaluation error
-                        *err = true;
                         return {};
                     }
 

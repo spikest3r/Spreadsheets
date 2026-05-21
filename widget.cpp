@@ -21,6 +21,12 @@ Widget::Widget(QWidget *parent)
 
     QStatusBar *statusBar = new QStatusBar(this);
 
+    statusBarText = new QLabel(this);
+    statusBarText->setContentsMargins(8, 0, 8, 0);
+    statusBarText->setFixedWidth(240);
+    statusBarText->setText("Ready");
+    statusBar->addWidget(statusBarText);
+
     labelAverage = new QLabel(this);
     labelAverage->setContentsMargins(8, 0, 8, 0);
     statusBar->addWidget(labelAverage);
@@ -36,6 +42,14 @@ Widget::Widget(QWidget *parent)
     labelAverage->setVisible(false);
     labelSum->setVisible(false);
     labelCount->setVisible(false);
+
+    QMenu* fileMenu = menuBar->addMenu("File");
+    QAction* undoAction = fileMenu->addAction("Undo");
+    undoAction->setShortcut(QKeySequence::Undo);
+    connect(undoAction, &QAction::triggered, this, &Widget::undoBtn);
+    QAction* redoAction = fileMenu->addAction("Redo");
+    redoAction->setShortcut(QKeySequence::Redo);
+    connect(redoAction, &QAction::triggered, this, &Widget::redoBtn);
 
     QMenu* opsMenu = menuBar->addMenu("Data");
     QMenu* rangeMenu = opsMenu->addMenu("Range");
@@ -54,7 +68,8 @@ Widget::Widget(QWidget *parent)
     layout->addWidget(formulaBar);
 
     view = new QTableView(this);
-    view->setModel(new TableModel(this));
+    auto model = new TableModel(this);
+    view->setModel(model);
     view->setSortingEnabled(true);
     view->setSizePolicy(QSizePolicy::Expanding, QSizePolicy::Expanding);
     view->setEditTriggers(QAbstractItemView::AnyKeyPressed |
@@ -76,6 +91,11 @@ Widget::Widget(QWidget *parent)
 
     layout->addWidget(statusBar);
 
+    statusMessageTimer = new QTimer(this);
+    statusMessageTimer->setInterval(2500);
+    statusMessageTimer->setSingleShot(true);
+    connect(statusMessageTimer, &QTimer::timeout, this, &Widget::statusMessageTimerAction);
+
     view->show();
 }
 
@@ -90,8 +110,15 @@ void Widget::onFormulaBarEdited() {
 void Widget::onSelectionChangedSlot(const QItemSelection &selected, const QItemSelection &deselected) {
     QModelIndexList indexes = selected.indexes();
     if (indexes.isEmpty()) return;
-    QString raw = indexes.first().data(Qt::EditRole).toString();
+    auto cell = indexes.first();
+    QString raw = cell.data(Qt::EditRole).toString();
     formulaBar->setText(raw);
+    QString computed = cell.data(Qt::DisplayRole).toString();
+    if(computed.startsWith("#")) {
+        auto error = STR2FPE(computed);
+        auto message = getErrorMessage(error);
+        pushStatusMessage(message);
+    }
 }
 
 void Widget::resizeEvent(QResizeEvent *event) {
@@ -112,10 +139,11 @@ void Widget::onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottom
     QString text = value.toString();
     formulaBar->setText(text);
     if(text.startsWith("=")) {
-        bool error = false;
+        FormulaParserError error = FPE_NONE;
         QSet<QPair<int,int>> deps;
-        float result = parseFormula(text, &error, deps);
-        QString cellValue = error ? "#ERROR" : QString("%0").arg(result);
+        float result = parseFormula(text, error, deps);
+        QString cellValue = error != FPE_NONE ? getCellError(error) : QString("%0").arg(result);
+        if(error != FPE_NONE) pushStatusMessage(getErrorMessage(error));
         model->computedValues[{row, col}] = cellValue;
         model->clearDependencies({row, col});
         for(QPair<int,int> dep: deps) {
@@ -211,11 +239,45 @@ void Widget::sumBtn() {
 
 void Widget::smartFillBtn() {
     SmartFillError err = SFE_NONE;
-    smartFillOperation(err);
+    SmartFillOperation op = SFO_NONE;
+    smartFillOperation(err, op);
     if(err != SFE_NONE) {
         QString message = getErrorMessage(err);
         QMessageBox::warning(this, "Smart Fill error", message);
+        pushStatusMessage("Smart Fill failed");
+    } else {
+        QString status;
+        switch(op) {
+        case ARITHMETIC_PROGRESSION:
+            status = "Arithmetic progression";
+            break;
+        case GEOMETRICAL_PROGRESSION:
+            status = "Geometrical progression";
+            break;
+        case FORMULA_OFFSET:
+            status = "Relative formula pattern";
+            break;
+        case COPY:
+            status = "Repeating sequence";
+            break;
+        default:
+            status = "Not implemented";
+            break;
+        }
+        pushStatusMessage("Smart Fill: " + status);
     }
+}
+
+void Widget::undoBtn() {
+    bool ok = ((TableModel*)view->model())->undoLastEdit();
+    if(ok) pushStatusMessage("Undo edit");
+    else pushStatusMessage("Nothing to undo");
+}
+
+void Widget::redoBtn() {
+    bool ok = ((TableModel*)view->model())->redoEdit();
+    if(ok) pushStatusMessage("Redo edit");
+    else pushStatusMessage("Nothing to redo");
 }
 
 QString Widget::getErrorMessage(SmartFillError error) {
@@ -229,4 +291,47 @@ QString Widget::getErrorMessage(SmartFillError error) {
     case NOCELLREFS: return "Formula contains no cell references to offset.";
     case NOTIMPLEMENTED: return "Not implemented yet.";
     }
+}
+
+QString Widget::getErrorMessage(FormulaParserError error) {
+    switch (error) {
+    case MATH_EVALUATION_ERROR:    return "Mathematical calculation error";
+    case INCORRECT_ARGUMENT_COUNT: return "Wrong number of arguments";
+    case NON_NUMERIC_VALUE:        return "Expected a numeric value";
+    case INVALID_SYNTAX:           return "Invalid formula syntax";
+    case FPE_NONE:
+    default:                       return "";
+    }
+}
+
+QString Widget::getCellError(FormulaParserError error) {
+    switch (error) {
+    case MATH_EVALUATION_ERROR:    return "#NUM!";
+    case INCORRECT_ARGUMENT_COUNT: return "#N/A";
+    case NON_NUMERIC_VALUE:        return "#VALUE!";
+    case INVALID_SYNTAX:           return "#ERROR!";
+    case FPE_NONE:
+    default:                       return "";
+    }
+}
+
+FormulaParserError Widget::STR2FPE(QString str) {
+    if(str == "#NUM!") return MATH_EVALUATION_ERROR;
+    if(str == "#N/A") return INCORRECT_ARGUMENT_COUNT;
+    if(str == "#VALUE!") return NON_NUMERIC_VALUE;
+    if(str == "#ERROR!") return INVALID_SYNTAX;
+}
+
+void Widget::pushStatusMessage(QString message) {
+    if(statusMessageTimer->isActive()) {
+        statusMessageTimer->stop();
+    }
+
+    statusBarText->setText(message);
+
+    statusMessageTimer->start();
+}
+
+void Widget::statusMessageTimerAction() {
+    statusBarText->setText("Ready");
 }

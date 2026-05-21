@@ -52,6 +52,13 @@ bool TableModel::setData(const QModelIndex &index, const QVariant &value, int ro
     if (c >= data_[r].size())
         data_[r].resize(c + 1);
 
+    if(!redoStack.empty()) redoStack.clear();
+
+    EditOperation op;
+    op.cell = {r, c};
+    op.previousValue = data_[r][c];
+    editStack.push_back(op);
+
     data_[r][c] = value;
 
     emit dataChanged(index, index, {Qt::DisplayRole, Qt::EditRole});
@@ -74,4 +81,44 @@ void TableModel::clearDependencies(QPair<int,int> dependent) {
 
 QList<QPair<int,int>> TableModel::getDependents(QPair<int,int> dependency) {
     return dependencyGraph.value(dependency);
+}
+
+bool TableModel::undoLastEdit() {
+    if(editStack.empty()) return false;
+
+    EditOperation op = editStack.back();
+    editStack.pop_back();
+
+    int row = op.cell.first;
+    int col = op.cell.second;
+
+    EditOperation redoOp;
+    redoOp.cell = {row, col};
+    redoOp.previousValue = this->index(row, col).data(Qt::EditRole).toString();
+    redoStack.push_back(redoOp);
+
+    data_[row][col] = op.previousValue;
+
+    emit this->dataChanged(this->index(row, col), this->index(row, col));
+    return true;
+}
+
+bool TableModel::redoEdit() {
+    if(redoStack.empty()) return false;
+
+    EditOperation op = redoStack.back();
+    redoStack.pop_back();
+
+    int row = op.cell.first;
+    int col = op.cell.second;
+
+    EditOperation undoOp;
+    undoOp.cell = {row, col};
+    undoOp.previousValue = this->index(row, col).data(Qt::EditRole).toString();
+    editStack.push_back(undoOp);
+
+    data_[row][col] = op.previousValue;
+
+    emit this->dataChanged(this->index(row, col), this->index(row, col));
+    return true;
 }

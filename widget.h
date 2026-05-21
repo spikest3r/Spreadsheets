@@ -14,6 +14,7 @@
 #include <QLabel>
 #include <QMessageBox>
 #include <QLineEdit>
+#include <QTimer>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -32,7 +33,13 @@ enum FormulaOP {
     PI
 };
 
-// TODO: enum FormulaParserError
+enum FormulaParserError {
+    FPE_NONE,
+    MATH_EVALUATION_ERROR,
+    INCORRECT_ARGUMENT_COUNT,
+    NON_NUMERIC_VALUE,
+    INVALID_SYNTAX
+};
 
 enum SmartFillError {
     SFE_NONE,
@@ -90,23 +97,35 @@ private:
     void averageBtn();
     void sumBtn();
     void smartFillBtn();
+    void undoBtn();
+    void redoBtn();
 
     float averageOp(bool* ok); // range average
     float sumOp(bool* ok); // range sum
     int countOp(); // count of items in range
 
-    void smartFillOperation(SmartFillError& error);
+    void smartFillOperation(SmartFillError& error, SmartFillOperation& operation);
     void formulaSmartFill(SmartFillError& error, int rowCount, int colCount);
 
+    QLabel* statusBarText;
     QLabel *labelAverage;
     QLabel *labelSum;
     QLabel *labelCount;
-    float parseFormula(QString formula, bool* err, QSet<QPair<int,int>>& dependencies);
-    float parseOperation(FormulaOP operation, std::vector<QString> args, bool* error, QSet<QPair<int,int>>& dependencies);
+
+    float parseFormula(QString formula, FormulaParserError& err, QSet<QPair<int,int>>& dependencies);
+    float parseOperation(FormulaOP operation, std::vector<QString> args, FormulaParserError& error, QSet<QPair<int,int>>& dependencies);
     FormulaOP strToOp(QString str);
     std::vector<QString> tokenizeFormula(QString formula);
-    std::vector<QString> evaluateExpression(std::vector<QString> tokens, bool* err, QSet<QPair<int,int>>& dependencies);
+    std::vector<QString> evaluateExpression(std::vector<QString> tokens, FormulaParserError& err, QSet<QPair<int,int>>& dependencies);
 
     QString getErrorMessage(SmartFillError error);
+    QString getErrorMessage(FormulaParserError error);
+
+    QString getCellError(FormulaParserError error);
+    FormulaParserError STR2FPE(QString cellError);
+
+    void pushStatusMessage(QString message);
+    QTimer* statusMessageTimer;
+    void statusMessageTimerAction();
 };
 #endif // WIDGET_H
