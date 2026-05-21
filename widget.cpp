@@ -312,12 +312,20 @@ void Widget::bgColorBtn() {
             return;
         }
 
-        for(const QModelIndex &idx : indexes) {
-            int r = idx.row();
-            int c = idx.column();
+        int minRow = INT_MAX, minCol = INT_MAX;
+        int maxRow = INT_MIN, maxCol = INT_MIN;
 
-            model->setCellColor({r,c},selectedColor);
+        for (const QModelIndex& idx : indexes) {
+            minRow = qMin(minRow, idx.row());
+            minCol = qMin(minCol, idx.column());
+            maxRow = qMax(maxRow, idx.row());
+            maxCol = qMax(maxCol, idx.column());
         }
+
+        QPair<int,int> topLeft     = {minRow, minCol};
+        QPair<int,int> bottomRight = {maxRow, maxCol};
+
+        model->setCellColor(topLeft, bottomRight, selectedColor);
 
         pushStatusMessage("Updated cell color");
     } else {
@@ -344,14 +352,22 @@ void Widget::fgColorBtn() {
             return;
         }
 
-        for(const QModelIndex &idx : indexes) {
-            int r = idx.row();
-            int c = idx.column();
+        int minRow = INT_MAX, minCol = INT_MAX;
+        int maxRow = INT_MIN, maxCol = INT_MIN;
 
-            model->setTextColor({r,c},selectedColor);
+        for (const QModelIndex& idx : indexes) {
+            minRow = qMin(minRow, idx.row());
+            minCol = qMin(minCol, idx.column());
+            maxRow = qMax(maxRow, idx.row());
+            maxCol = qMax(maxCol, idx.column());
         }
 
-        pushStatusMessage("Updated text color");
+        QPair<int,int> topLeft     = {minRow, minCol};
+        QPair<int,int> bottomRight = {maxRow, maxCol};
+
+        model->setTextColor(topLeft, bottomRight, selectedColor);
+
+        pushStatusMessage("Updated cell color");
     } else {
         pushStatusMessage("Color selection canceled");
     }

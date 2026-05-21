@@ -67,12 +67,15 @@ bool TableModel::setData(const QModelIndex &index, const QVariant &value, int ro
 
     if(!redoStack.empty()) redoStack.clear();
 
-    EditOperation op;
+    CellEdit op;
     op.cell = {r, c};
-    op.previousValue = data_[r][c];
-    editStack.push_back(op);
+    op.before = data_[r][c];
 
     data_[r][c].value = value;
+
+    op.after = data_[r][c];
+
+    editStack.push_back(op);
 
     emit dataChanged(index, index, {Qt::DisplayRole, Qt::EditRole});
     return true;
@@ -102,19 +105,17 @@ bool TableModel::undoLastEdit() {
     EditOperation op = editStack.back();
     editStack.pop_back();
 
-    int row = op.cell.first;
-    int col = op.cell.second;
+    std::visit([&](auto&& op) {
+        using T = std::decay_t<decltype(op)>;
+        if constexpr (std::is_same_v<T, CellEdit>) {
+            applyCell(op.cell, op.before);
+        } else if constexpr (std::is_same_v<T, RangeEdit>) {
+            applyRange(op.topLeft, op.bottomRight, op.before);
+        }
+    }, op);
 
-    EditOperation redoOp;
-    redoOp.cell = {row, col};
-    redoOp.previousValue.value = this->index(row, col).data(Qt::EditRole);
-    redoOp.previousValue.cellColor = data_[row][col].cellColor;
-    redoOp.previousValue.textColor = data_[row][col].textColor;
-    redoStack.push_back(redoOp);
+    redoStack.push_back(op);
 
-    data_[row][col] = op.previousValue;
-
-    emit this->dataChanged(this->index(row, col), this->index(row, col));
     return true;
 }
 
@@ -124,76 +125,119 @@ bool TableModel::redoEdit() {
     EditOperation op = redoStack.back();
     redoStack.pop_back();
 
-    int row = op.cell.first;
-    int col = op.cell.second;
+    std::visit([&](auto&& op) {
+        using T = std::decay_t<decltype(op)>;
+        if constexpr (std::is_same_v<T, CellEdit>) {
+            applyCell(op.cell, op.after);
+        } else if constexpr (std::is_same_v<T, RangeEdit>) {
+            applyRange(op.topLeft, op.bottomRight, op.after);
+        }
+    }, op);
 
-    EditOperation undoOp;
-    undoOp.cell = {row, col};
-    undoOp.previousValue.value = this->index(row, col).data(Qt::EditRole);
-    undoOp.previousValue.cellColor = data_[row][col].cellColor;
-    undoOp.previousValue.textColor = data_[row][col].textColor;
-    editStack.push_back(undoOp);
+    editStack.push_back(op);
 
-    data_[row][col] = op.previousValue;
-
-    emit this->dataChanged(this->index(row, col), this->index(row, col));
     return true;
 }
 
-void TableModel::setCellColor(QPair<int, int> cell, QColor color) {
-    int r = cell.first;
-    int c = cell.second;
-
-    checkSize(r, c);
+void TableModel::setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color) {
+    checkSize(bottomRight.first, bottomRight.second);
 
     if(!redoStack.empty()) redoStack.clear();
 
-    EditOperation op;
-    op.cell = {r, c};
-    op.previousValue = data_[r][c];
-    editStack.push_back(op);
+    RangeEdit op;
+    op.topLeft = topLeft;
+    op.bottomRight = bottomRight;
 
-    data_[r][c].cellColor = color;
-    emit this->dataChanged(this->index(r, c), this->index(r, c));
+    int top = topLeft.first;
+    int left = topLeft.second;
+    int bottom = bottomRight.first;
+    int right = bottomRight.second;
+
+    for(int i = top; i < bottom + 1; i++) {
+        op.before.push_back({});
+        op.after.push_back({});
+        for(int j = left; j < right + 1; j++) {
+            op.before[i].push_back(data_[i][j]);
+            data_[i][j].cellColor = color;
+            op.after[i].push_back(data_[i][j]);
+
+            emit this->dataChanged(this->index(i, j), this->index(i, j));
+        }
+    }
+
+    editStack.push_back(op);
 }
 
-void TableModel::setTextColor(QPair<int, int> cell, QColor color) {
-    int r = cell.first;
-    int c = cell.second;
-
-    checkSize(r, c);
+void TableModel::setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color) {
+    checkSize(bottomRight.first, bottomRight.second);
 
     if(!redoStack.empty()) redoStack.clear();
 
-    EditOperation op;
-    op.cell = {r, c};
-    op.previousValue = data_[r][c];
-    editStack.push_back(op);
+    RangeEdit op;
+    op.topLeft = topLeft;
+    op.bottomRight = bottomRight;
 
-    data_[r][c].textColor = color;
-    emit this->dataChanged(this->index(r, c), this->index(r, c));
+    int top = topLeft.first;
+    int left = topLeft.second;
+    int bottom = bottomRight.first;
+    int right = bottomRight.second;
+
+    for(int i = top; i < bottom + 1; i++) {
+        op.before.push_back({});
+        op.after.push_back({});
+        for(int j = left; j < right + 1; j++) {
+            op.before[i].push_back(data_[i][j]);
+            data_[i][j].textColor = color;
+            op.after[i].push_back(data_[i][j]);
+
+            emit this->dataChanged(this->index(i, j), this->index(i, j));
+        }
+    }
+
+    editStack.push_back(op);
 }
 
 void TableModel::checkSize(int r, int c) {
-    size_t oldRows = data_.size();
+    int oldRows = data_.size();
     if (r >= oldRows) {
         data_.resize(r + 1);
-        // Initialize all new rows
-        for (size_t ri = oldRows; ri < data_.size(); ++ri) {
-            for (auto& cell : data_[ri]) {
-                cell.cellColor = defaultBg;
-                cell.textColor = defaultFg;
+        for (int ri = oldRows; ri <= r; ++ri) {
+            data_[ri].resize(c + 1);
+            for (int ci = 0; ci <= c; ++ci) {
+                data_[ri][ci].cellColor = defaultBg;
+                data_[ri][ci].textColor = defaultFg;
             }
         }
     }
 
-    size_t oldCols = data_[r].size();
+    int oldCols = data_[r].size();
     if (c >= oldCols) {
         data_[r].resize(c + 1);
-        // Initialize all new cells in this row
-        for (size_t ci = oldCols; ci < data_[r].size(); ++ci) {
+        for (int ci = oldCols; ci <= c; ++ci) {
             data_[r][ci].cellColor = defaultBg;
             data_[r][ci].textColor = defaultFg;
         }
     }
+}
+
+void TableModel::applyCell(QPair<int, int> cell, Cell before) {
+    int r = cell.first;
+    int c = cell.second;
+    data_[r][c] = before;
+    emit this->dataChanged(this->index(r, c), this->index(r, c));
+}
+
+void TableModel::applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> before) {
+    int top = topLeft.first;
+    int left = topLeft.second;
+    int bottom = bottomRight.first;
+    int right = bottomRight.second;
+
+    for(int i = top; i < bottom + 1; i++) {
+        for(int j = left; j < right + 1; j++) {
+            data_[i][j] = before[i][j];
+        }
+    }
+
+    emit this->dataChanged(this->index(top, left), this->index(bottom, right));
 }

@@ -7,6 +7,7 @@
 #include <QColor>
 #include <QBrush>
 #include <QApplication>
+#include <variant>
 
 struct Cell {
     QVariant value;
@@ -14,10 +15,19 @@ struct Cell {
     QColor textColor;
 };
 
-struct EditOperation {
+struct CellEdit {
     QPair<int, int> cell;
-    Cell previousValue;
+    Cell before, after;
 };
+
+struct RangeEdit {
+    QPair<int, int> topLeft;
+    QPair<int, int> bottomRight;
+    QVector<QVector<Cell>> before;
+    QVector<QVector<Cell>> after;
+};
+
+using EditOperation = std::variant<CellEdit, RangeEdit>;
 
 inline size_t qHash(const QPair<int,int> &key, size_t seed = 0) {
     return qHash(key.first, seed) ^ qHash(key.second, seed << 1);
@@ -43,6 +53,9 @@ protected:
     QVector<QVector<Cell>> data_;
     QVector<EditOperation> editStack;
     QVector<EditOperation> redoStack; // push what was undid, purge on new edit
+    void checkSize(int r, int c);
+    void applyCell(QPair<int, int> cell, Cell before);
+    void applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> before);
 
 public:
     QHash<QPair<int,int>, QList<QPair<int,int>>> dependencyGraph;
@@ -54,10 +67,8 @@ public:
     bool undoLastEdit();
     bool redoEdit();
 
-    void setCellColor(QPair<int, int> cell, QColor color);
-    void setTextColor(QPair<int, int> cell, QColor color);
-
-    void checkSize(int r, int c);
+    void setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color);
+    void setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color);
 
     QColor defaultBg;
     QColor defaultFg;
