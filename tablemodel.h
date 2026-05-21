@@ -4,10 +4,18 @@
 #include <QVariant>
 #include <QModelIndex>
 #include <QPair>
+#include <QColor>
+#include <QBrush>
+#include <QApplication>
+
+struct Cell {
+    QVariant value;
+    QColor cellColor;
+};
 
 struct EditOperation {
     QPair<int, int> cell;
-    QVariant previousValue;
+    Cell previousValue;
 };
 
 inline size_t qHash(const QPair<int,int> &key, size_t seed = 0) {
@@ -31,7 +39,7 @@ public:
         : QAbstractTableModel(parent) {}
 
 protected:
-    QVector<QVector<QVariant>> data_;
+    QVector<QVector<Cell>> data_;
     QVector<EditOperation> editStack;
     QVector<EditOperation> redoStack; // push what was undid, purge on new edit
 
@@ -44,6 +52,10 @@ public:
     QList<QPair<int,int>> getDependents(QPair<int,int> dependency);
     bool undoLastEdit();
     bool redoEdit();
+
+    void setCellColor(QPair<int, int> cell, QColor color);
+
+    QColor defaultBg;
 };
 
 #endif // TABLEMODEL_H

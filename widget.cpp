@@ -62,6 +62,10 @@ Widget::Widget(QWidget *parent)
     connect(rangeSumAction, &QAction::triggered, this, &Widget::sumBtn);
     connect(smartFillAction, &QAction::triggered, this, &Widget::smartFillBtn);
 
+    QMenu* styleMenu = menuBar->addMenu("Style");
+    QAction* cellBgAction = styleMenu->addAction("Set cell background color");
+    connect(cellBgAction, &QAction::triggered, this, &Widget::bgColorBtn);
+
     layout->addWidget(menuBar);
 
     formulaBar = new QLineEdit(this);
@@ -75,6 +79,10 @@ Widget::Widget(QWidget *parent)
     view->setEditTriggers(QAbstractItemView::AnyKeyPressed |
                           QAbstractItemView::DoubleClicked);
     view->installEventFilter(this);
+
+    QPalette palette = QApplication::palette();
+    QColor defaultBgColor = palette.color(QPalette::Base);
+    model->defaultBg = defaultBgColor;
 
     connect(view->model(), &QAbstractItemModel::dataChanged,
             this, &Widget::onDataChanged);
@@ -114,7 +122,7 @@ void Widget::onSelectionChangedSlot(const QItemSelection &selected, const QItemS
     QString raw = cell.data(Qt::EditRole).toString();
     formulaBar->setText(raw);
     QString computed = cell.data(Qt::DisplayRole).toString();
-    if(computed.startsWith("#")) {
+    if(computed.startsWith("#") && raw.startsWith("=")) { // filter user typed # and formula error induced #
         auto error = STR2FPE(computed);
         auto message = getErrorMessage(error);
         pushStatusMessage(message);
@@ -278,6 +286,39 @@ void Widget::redoBtn() {
     bool ok = ((TableModel*)view->model())->redoEdit();
     if(ok) pushStatusMessage("Redo edit");
     else pushStatusMessage("Nothing to redo");
+}
+
+
+void Widget::bgColorBtn() {
+    QColor initialColor = Qt::white;
+
+    QColor selectedColor = QColorDialog::getColor(
+        initialColor,               // Default selected color
+        this,                       // Parent widget
+        "Select Cell Background"    // Dialog title
+        );
+
+    if (selectedColor.isValid()) {
+        auto model = (TableModel*)view->model();
+        auto selected = view->selectionModel();
+
+        QModelIndexList indexes = selected->selectedIndexes();
+        if (indexes.isEmpty()) {
+            pushStatusMessage("No cells selected");
+            return;
+        }
+
+        for(const QModelIndex &idx : indexes) {
+            int r = idx.row();
+            int c = idx.column();
+
+            model->setCellColor({r,c},selectedColor);
+        }
+
+        pushStatusMessage("Updated cell color");
+    } else {
+        pushStatusMessage("Color selection canceled");
+    }
 }
 
 QString Widget::getErrorMessage(SmartFillError error) {

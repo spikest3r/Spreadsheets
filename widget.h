@@ -15,6 +15,8 @@
 #include <QMessageBox>
 #include <QLineEdit>
 #include <QTimer>
+#include <QApplication>
+#include <QColorDialog>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -99,6 +101,7 @@ private:
     void smartFillBtn();
     void undoBtn();
     void redoBtn();
+    void bgColorBtn();
 
     float averageOp(bool* ok); // range average
     float sumOp(bool* ok); // range sum
