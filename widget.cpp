@@ -44,6 +44,16 @@ Widget::Widget(QWidget *parent)
     labelCount->setVisible(false);
 
     QMenu* fileMenu = menuBar->addMenu("File");
+    QAction* newAction = fileMenu->addAction("New");
+    connect(newAction, &QAction::triggered, this, &Widget::newBtn);
+    newAction->setShortcut(QKeySequence::New);
+    QAction* saveAction = fileMenu->addAction("Save");
+    connect(saveAction, &QAction::triggered, this, &Widget::saveBtn);
+    saveAction->setShortcut(QKeySequence::Save);
+    QAction* loadAction = fileMenu->addAction("Open");
+    connect(loadAction, &QAction::triggered, this, &Widget::loadBtn);
+    loadAction->setShortcut(QKeySequence::Open);
+    fileMenu->addSeparator();
     QAction* undoAction = fileMenu->addAction("Undo");
     undoAction->setShortcut(QKeySequence::Undo);
     connect(undoAction, &QAction::triggered, this, &Widget::undoBtn);
@@ -140,8 +150,81 @@ void Widget::resizeEvent(QResizeEvent *event) {
     QWidget::resizeEvent(event);
 }
 
+void Widget::newBtn() {
+    if(modifiedSinceSave) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this, "Unsaved Changes",
+            "Do you want to save before creating new spreadsheet?",
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+            );
+
+        if (reply == QMessageBox::Yes) {
+            bool save = saveBtn();
+            if (!save) {
+                // saving has failed
+                return;
+            }
+
+            auto model = (TableModel*)view->model();
+
+            // accept
+            model->reset();
+            modifiedSinceSave = true;
+            isSaved = false;
+            filename.clear();
+            pushStatusMessage("New spreadsheet");
+        } else if (reply == QMessageBox::No) {
+            // accept
+            auto model = (TableModel*)view->model();
+            model->reset();
+            modifiedSinceSave = true;
+            isSaved = false;
+            filename.clear();
+            pushStatusMessage("New spreadsheet");
+        } else { // Cancel
+            // ignore
+        }
+    } else {
+        // accept
+        auto model = (TableModel*)view->model();
+        model->reset();
+        modifiedSinceSave = true;
+        isSaved = false;
+        filename.clear();
+        pushStatusMessage("New spreadsheet");
+    }
+}
+
+void Widget::closeEvent(QCloseEvent* event) {
+    if(modifiedSinceSave) {
+        QMessageBox::StandardButton reply = QMessageBox::question(
+            this, "Unsaved Changes",
+            "Do you want to save before closing?",
+            QMessageBox::Yes | QMessageBox::No | QMessageBox::Cancel
+            );
+
+        if (reply == QMessageBox::Yes) {
+            bool save = saveBtn();
+            if(!save) {
+                // saving has failed
+                event->ignore();
+                return;
+            }
+            event->accept();
+        } else if (reply == QMessageBox::No) {
+            event->accept();
+        } else { // Cancel
+            event->ignore();
+        }
+    } else {
+        event->accept();
+    }
+}
+
 void Widget::onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight)
 {
+    modifiedSinceSave = true;
+
     auto model = ((TableModel*)view->model());
 
     int row = topLeft.row();
@@ -371,6 +454,56 @@ void Widget::fgColorBtn() {
     } else {
         pushStatusMessage("Color selection canceled");
     }
+}
+
+bool Widget::saveBtn() {
+    auto model = (TableModel*)view->model();
+    if(!isSaved) {
+        QString path = QFileDialog::getSaveFileName(this, "Save File", "", "Table Files (*.tblx);;All Files (*)");
+        if (!path.isEmpty()) {
+            if (!model->saveToFile(path)) {
+                QMessageBox::critical(this, "Error", "Failed to save file.");
+                return false;
+            }
+            else {
+                isSaved = true;
+                modifiedSinceSave = false;
+                filename = path;
+                pushStatusMessage("File saved");
+                return true;
+            }
+        }
+    } else {
+        if (!model->saveToFile(filename)) {
+            QMessageBox::critical(this, "Error", "Failed to save file.");
+            return false;
+        }
+        else {
+            isSaved = true;
+            modifiedSinceSave = false;
+            pushStatusMessage("File saved");
+            return true;
+        }
+    }
+}
+
+bool Widget::loadBtn() {
+    auto model = (TableModel*)view->model();
+    QString path = QFileDialog::getOpenFileName(this, "Open File", "", "Table Files (*.tblx);;All Files (*)");
+    if (!path.isEmpty()) {
+        if (!model->loadFromFile(path)) {
+            QMessageBox::critical(this, "Error", "Failed to load file.");
+            return false;
+        }
+        else {
+            isSaved = true;
+            modifiedSinceSave = false;
+            filename = path;
+            pushStatusMessage("File opened");
+            return true;
+        }
+    }
+    return false;
 }
 
 QString Widget::getErrorMessage(SmartFillError error) {

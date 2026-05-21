@@ -17,6 +17,7 @@
 #include <QTimer>
 #include <QApplication>
 #include <QColorDialog>
+#include <QFileDialog>
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -91,6 +92,7 @@ protected:
     void onSelectionChangedSlot(const QItemSelection &selected, const QItemSelection &deselected);
     void onFormulaBarEdited();
     bool eventFilter(QObject *obj, QEvent *event);
+    void closeEvent(QCloseEvent* event) override;
 
 private:
     QTableView *view;
@@ -103,6 +105,13 @@ private:
     void redoBtn();
     void bgColorBtn();
     void fgColorBtn();
+    bool saveBtn();
+    bool loadBtn();
+    void newBtn();
+
+    bool isSaved = false;
+    bool modifiedSinceSave = false;
+    QString filename;
 
     float averageOp(bool* ok); // range average
     float sumOp(bool* ok); // range sum

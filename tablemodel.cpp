@@ -153,15 +153,14 @@ void TableModel::setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRig
     int bottom = bottomRight.first;
     int right = bottomRight.second;
 
-    for(int i = top; i < bottom + 1; i++) {
+    for(int i = top; i <= bottom; i++) {
         op.before.push_back({});
         op.after.push_back({});
-        for(int j = left; j < right + 1; j++) {
-            op.before[i].push_back(data_[i][j]);
+        for(int j = left; j <= right; j++) {
+            op.before[i - top].push_back(data_[i][j]);
             data_[i][j].cellColor = color;
-            op.after[i].push_back(data_[i][j]);
-
-            emit this->dataChanged(this->index(i, j), this->index(i, j));
+            op.after[i - top].push_back(data_[i][j]);
+            emit dataChanged(index(i, j), index(i, j));
         }
     }
 
@@ -182,15 +181,14 @@ void TableModel::setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRig
     int bottom = bottomRight.first;
     int right = bottomRight.second;
 
-    for(int i = top; i < bottom + 1; i++) {
+    for(int i = top; i <= bottom; i++) {
         op.before.push_back({});
         op.after.push_back({});
-        for(int j = left; j < right + 1; j++) {
-            op.before[i].push_back(data_[i][j]);
+        for(int j = left; j <= right; j++) {
+            op.before[i - top].push_back(data_[i][j]);
             data_[i][j].textColor = color;
-            op.after[i].push_back(data_[i][j]);
-
-            emit this->dataChanged(this->index(i, j), this->index(i, j));
+            op.after[i - top].push_back(data_[i][j]);
+            emit dataChanged(index(i, j), index(i, j));
         }
     }
 
@@ -223,6 +221,7 @@ void TableModel::checkSize(int r, int c) {
 void TableModel::applyCell(QPair<int, int> cell, Cell before) {
     int r = cell.first;
     int c = cell.second;
+    checkSize(r, c);
     data_[r][c] = before;
     emit this->dataChanged(this->index(r, c), this->index(r, c));
 }
@@ -232,12 +231,20 @@ void TableModel::applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight
     int left = topLeft.second;
     int bottom = bottomRight.first;
     int right = bottomRight.second;
-
+    checkSize(bottom, right);
     for(int i = top; i < bottom + 1; i++) {
         for(int j = left; j < right + 1; j++) {
-            data_[i][j] = before[i][j];
+            data_[i][j] = before[i - top][j - left];
         }
     }
 
     emit this->dataChanged(this->index(top, left), this->index(bottom, right));
+}
+
+void TableModel::reset() {
+    beginResetModel();
+    data_.clear();
+    editStack.clear();
+    redoStack.clear();
+    endResetModel();
 }

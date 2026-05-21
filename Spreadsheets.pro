@@ -13,6 +13,7 @@ SOURCES += \
     formulaparser.cpp \
     main.cpp \
     operations.cpp \
+    saveload.cpp \
     smartfill.cpp \
     tablemodel.cpp \
     widget.cpp

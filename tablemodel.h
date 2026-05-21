@@ -8,6 +8,7 @@
 #include <QBrush>
 #include <QApplication>
 #include <variant>
+#include <QFile>
 
 struct Cell {
     QVariant value;
@@ -69,6 +70,10 @@ public:
 
     void setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color);
     void setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color);
+
+    bool saveToFile(const QString& path);
+    bool loadFromFile(const QString& path);
+    void reset();
 
     QColor defaultBg;
     QColor defaultFg;
