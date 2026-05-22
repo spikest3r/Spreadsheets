@@ -91,6 +91,7 @@ Widget::Widget(QWidget *parent)
     view->setEditTriggers(QAbstractItemView::AnyKeyPressed |
                           QAbstractItemView::DoubleClicked);
     view->installEventFilter(this);
+    view->setCurrentIndex(model->index(0, 0));
 
     QPalette palette = QApplication::palette();
     QColor defaultBgColor = palette.color(QPalette::Base);
@@ -221,38 +222,64 @@ void Widget::closeEvent(QCloseEvent* event) {
     }
 }
 
+void Widget::keyPressEvent(QKeyEvent* event) {
+    if (event->key() == Qt::Key_Delete || event->key() == Qt::Key_Backspace) {
+        auto selected = view->selectionModel()->selectedIndexes();
+        if (!selected.isEmpty()) {
+            auto model = (TableModel*)view->model();
+
+            int minRow = INT_MAX, minCol = INT_MAX;
+            int maxRow = INT_MIN, maxCol = INT_MIN;
+
+            for (const QModelIndex& idx : selected) {
+                minRow = qMin(minRow, idx.row());
+                minCol = qMin(minCol, idx.column());
+                maxRow = qMax(maxRow, idx.row());
+                maxCol = qMax(maxCol, idx.column());
+            }
+
+            QPair<int,int> topLeft     = {minRow, minCol};
+            QPair<int,int> bottomRight = {maxRow, maxCol};
+
+            model->setRangeValue(topLeft, bottomRight, "");
+            return;
+        }
+    }
+    QWidget::keyPressEvent(event);
+}
+
 void Widget::onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight)
 {
     modifiedSinceSave = true;
-
     auto model = ((TableModel*)view->model());
 
-    int row = topLeft.row();
-    int col = topLeft.column();
+    for (int row = topLeft.row(); row <= bottomRight.row(); row++) {
+        for (int col = topLeft.column(); col <= bottomRight.column(); col++) {
+            QModelIndex idx = model->index(row, col);
+            QVariant value = idx.data(Qt::EditRole);
+            QString text = value.toString();
 
-    QVariant value = topLeft.data(Qt::EditRole); // get formula that user typed
-    QString text = value.toString();
-    formulaBar->setText(text);
-    if(text.startsWith("=")) {
-        FormulaParserError error = FPE_NONE;
-        QSet<QPair<int,int>> deps;
-        float result = parseFormula(text, error, deps);
-        QString cellValue = error != FPE_NONE ? getCellError(error) : QString("%0").arg(result);
-        if(error != FPE_NONE) pushStatusMessage(getErrorMessage(error));
-        model->computedValues[{row, col}] = cellValue;
-        model->clearDependencies({row, col});
-        for(QPair<int,int> dep: deps) {
-            model->addDependency(dep, {row, col});
-        }
-    }
+            // update formula bar only for single cell change
+            if (topLeft == bottomRight) formulaBar->setText(text);
 
-    auto dependents = model->getDependents({row,col});
-    if(dependents.count() > 0) {
-        for(auto dep: dependents) {
-            int row = dep.first;
-            int col = dep.second;
+            if (text.startsWith("=")) {
+                FormulaParserError error = FPE_NONE;
+                QSet<QPair<int,int>> deps;
+                float result = parseFormula(text, error, deps);
+                QString cellValue = error != FPE_NONE ? getCellError(error) : QString("%0").arg(result);
+                if (error != FPE_NONE) pushStatusMessage(getErrorMessage(error));
+                model->computedValues[{row, col}] = cellValue;
+                model->clearDependencies({row, col});
+                for (QPair<int,int> dep : deps) {
+                    model->addDependency(dep, {row, col});
+                }
+            }
 
-            emit model->dataChanged(model->index(row, col), model->index(row, col));
+            auto dependents = model->getDependents({row, col});
+            for (auto dep : dependents) {
+                emit model->dataChanged(model->index(dep.first, dep.second),
+                                        model->index(dep.first, dep.second));
+            }
         }
     }
 }
@@ -294,9 +321,17 @@ bool Widget::eventFilter(QObject *obj, QEvent *event) {
 
         QModelIndex nextIdx;
         if (key->key() == Qt::Key_Return || key->key() == Qt::Key_Enter) {
-            nextIdx = view->model()->index(idx.row() + 1, idx.column());
+            if (key->modifiers() & Qt::ShiftModifier) {
+                nextIdx = view->model()->index(idx.row() - 1, idx.column());
+            } else {
+                nextIdx = view->model()->index(idx.row() + 1, idx.column());
+            }
         } else if (key->key() == Qt::Key_Tab) {
-            nextIdx = view->model()->index(idx.row(), idx.column() + 1);
+            if (key->modifiers() & Qt::ShiftModifier) {
+                nextIdx = view->model()->index(idx.row(), idx.column() - 1);
+            } else {
+                nextIdx = view->model()->index(idx.row(), idx.column() + 1);
+            }
         }
 
         if (nextIdx.isValid()) {

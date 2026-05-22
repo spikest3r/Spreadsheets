@@ -195,25 +195,74 @@ void TableModel::setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRig
     editStack.push_back(op);
 }
 
-void TableModel::checkSize(int r, int c) {
-    int oldRows = data_.size();
-    if (r >= oldRows) {
-        data_.resize(r + 1);
-        for (int ri = oldRows; ri <= r; ++ri) {
-            data_[ri].resize(c + 1);
-            for (int ci = 0; ci <= c; ++ci) {
-                data_[ri][ci].cellColor = defaultBg;
-                data_[ri][ci].textColor = defaultFg;
-            }
+void TableModel::setRangeValue(QPair<int, int> topLeft, QPair<int, int> bottomRight, QString value) {
+    checkSize(bottomRight.first, bottomRight.second);
+
+    if(!redoStack.empty()) redoStack.clear();
+
+    RangeEdit op;
+    op.topLeft = topLeft;
+    op.bottomRight = bottomRight;
+
+    int top = topLeft.first;
+    int left = topLeft.second;
+    int bottom = bottomRight.first;
+    int right = bottomRight.second;
+
+    for(int i = top; i <= bottom; i++) {
+        op.before.push_back({});
+        op.after.push_back({});
+        for(int j = left; j <= right; j++) {
+            op.before[i - top].push_back(data_[i][j]);
+            data_[i][j].value = value;
+            op.after[i - top].push_back(data_[i][j]);
+            emit dataChanged(index(i, j), index(i, j));
         }
     }
 
-    int oldCols = data_[r].size();
-    if (c >= oldCols) {
-        data_[r].resize(c + 1);
-        for (int ci = oldCols; ci <= c; ++ci) {
-            data_[r][ci].cellColor = defaultBg;
-            data_[r][ci].textColor = defaultFg;
+    editStack.push_back(op);
+}
+
+void TableModel::setRangeValues(QPair<int,int> topLeft, QPair<int,int> bottomRight,
+                                QVector<QString> values, FillDirection fd) {
+    checkSize(bottomRight.first, bottomRight.second);
+    if (!redoStack.empty()) redoStack.clear();
+
+    RangeEdit op;
+    op.topLeft = topLeft;
+    op.bottomRight = bottomRight;
+
+    int top = topLeft.first, left = topLeft.second;
+    int bottom = bottomRight.first, right = bottomRight.second;
+    int idx = 0;
+
+    for (int i = top; i <= bottom; i++) {
+        op.before.push_back({});
+        op.after.push_back({});
+        for (int j = left; j <= right; j++) {
+            op.before[i - top].push_back(data_[i][j]);
+            if (idx < values.size())
+                data_[i][j].value = values[idx++];
+            op.after[i - top].push_back(data_[i][j]);
+        }
+    }
+
+    editStack.push_back(op);
+    emit dataChanged(index(top, left), index(bottom, right));
+}
+
+void TableModel::checkSize(int r, int c) {
+    if (r >= (int)data_.size()) {
+        data_.resize(r + 1);
+    }
+    for (int ri = 0; ri <= r; ri++) {
+        int oldCols = data_[ri].size();
+        if (c >= oldCols) {
+            data_[ri].resize(c + 1);
+            for (int ci = oldCols; ci <= c; ci++) {
+                data_[ri][ci].cellColor = defaultBg;
+                data_[ri][ci].textColor = defaultFg;
+            }
         }
     }
 }
@@ -235,10 +284,9 @@ void TableModel::applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight
     for(int i = top; i < bottom + 1; i++) {
         for(int j = left; j < right + 1; j++) {
             data_[i][j] = before[i - top][j - left];
+            emit this->dataChanged(this->index(i, j), this->index(i, j));
         }
     }
-
-    emit this->dataChanged(this->index(top, left), this->index(bottom, right));
 }
 
 void TableModel::reset() {

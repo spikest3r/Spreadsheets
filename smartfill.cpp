@@ -75,6 +75,8 @@ void Widget::smartFillOperation(SmartFillError& error, SmartFillOperation& opera
     float previousK2 = 0.0f;
     bool ratio = false;
 
+    QVector<QString> results;
+
     int count = 0;
     for (const QModelIndex &idx : indexes) {
         bool ok;
@@ -93,6 +95,8 @@ void Widget::smartFillOperation(SmartFillError& error, SmartFillOperation& opera
         if(!ok && !fill) {
             error = INVALIDDATA;
             return;
+        } else if(ok && !fill) {
+            results.push_back(strData);
         }
 
         if(count > 0 && !fill) {
@@ -145,12 +149,29 @@ void Widget::smartFillOperation(SmartFillError& error, SmartFillOperation& opera
                 return;
             }
             }
-            view->model()->setData(idx, newCellValue);
+            results.push_back(QString::number(newCellValue));
         }
 
         if(!fill) previousValue = value;
         count++;
     }
+
+    minRow = INT_MAX; minCol = INT_MAX;
+    maxRow = INT_MIN; maxCol = INT_MIN;
+
+    for (const QModelIndex& idx : indexes) {
+        minRow = qMin(minRow, idx.row());
+        minCol = qMin(minCol, idx.column());
+        maxRow = qMax(maxRow, idx.row());
+        maxCol = qMax(maxCol, idx.column());
+    }
+
+    QPair<int,int> topLeft     = {minRow, minCol};
+    QPair<int,int> bottomRight = {maxRow, maxCol};
+
+    auto model = (TableModel*)view->model();
+    auto fd = getFillDirection(indexes, rowCount);
+    model->setRangeValues(topLeft, bottomRight, results, fd);
 
     operation = op;
 }
@@ -207,6 +228,8 @@ void Widget::formulaSmartFill(SmartFillError& error, int rowCount, int columnCou
     }
     }
 
+    QVector<QString> results;
+
     // fill formulas
     int count = 0;
     for (const QModelIndex &idx : indexes) {
@@ -248,8 +271,26 @@ void Widget::formulaSmartFill(SmartFillError& error, int rowCount, int columnCou
             }
 
             QString result = "=" + QStringList(tokens.begin(), tokens.end()).join("");
-            view->model()->setData(idx, result);
+            results.push_back(result);
+        } else {
+            results.push_back(formula);
         }
         count++;
     }
+
+    int minRow = INT_MAX, minCol = INT_MAX;
+    int maxRow = INT_MIN, maxCol = INT_MIN;
+
+    for (const QModelIndex& idx : indexes) {
+        minRow = qMin(minRow, idx.row());
+        minCol = qMin(minCol, idx.column());
+        maxRow = qMax(maxRow, idx.row());
+        maxCol = qMax(maxCol, idx.column());
+    }
+
+    QPair<int,int> topLeft     = {minRow, minCol};
+    QPair<int,int> bottomRight = {maxRow, maxCol};
+
+    auto model = (TableModel*)view->model();
+    model->setRangeValues(topLeft, bottomRight, results, fd);
 }

@@ -20,6 +20,7 @@ SOURCES += \
 
 HEADERS += \
     evaluationengine.h \
+    global.h \
     tablemodel.h \
     widget.h
 

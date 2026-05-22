@@ -18,6 +18,8 @@
 #include <QApplication>
 #include <QColorDialog>
 #include <QFileDialog>
+#include "global.h"
+#include "tablemodel.h"
 
 #define _USE_MATH_DEFINES
 #include <cmath>
@@ -69,13 +71,6 @@ enum SmartFillOperation {
     COPY
 };
 
-enum FillDirection {
-    ROW_POS,  // left to right
-    ROW_NEG,  // right to left
-    COL_POS,  // top to bottom
-    COL_NEG   // bottom to top
-};
-
 class Widget : public QWidget
 {
     Q_OBJECT
@@ -92,6 +87,7 @@ protected:
     void onSelectionChangedSlot(const QItemSelection &selected, const QItemSelection &deselected);
     void onFormulaBarEdited();
     bool eventFilter(QObject *obj, QEvent *event);
+    void keyPressEvent(QKeyEvent* event) override;
     void closeEvent(QCloseEvent* event) override;
 
 private:

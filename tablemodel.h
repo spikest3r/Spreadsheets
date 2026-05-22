@@ -9,6 +9,7 @@
 #include <QApplication>
 #include <variant>
 #include <QFile>
+#include "global.h"
 
 struct Cell {
     QVariant value;
@@ -70,6 +71,9 @@ public:
 
     void setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color);
     void setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color);
+    void setRangeValue(QPair<int, int> topLeft, QPair<int, int> bottomRight, QString value);
+    void setRangeValues(QPair<int,int> topLeft, QPair<int,int> bottomRight,
+                        QVector<QString> values, FillDirection fd);
 
     bool saveToFile(const QString& path);
     bool loadFromFile(const QString& path);
