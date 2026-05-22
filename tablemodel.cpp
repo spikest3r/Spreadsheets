@@ -94,9 +94,31 @@ bool TableModel::setData(const QModelIndex &index, const QVariant &value, int ro
     return true;
 }
 
-void TableModel::addDependency(QPair<int,int> dependency, QPair<int,int> dependent) {
-    if(dependency == dependent) return; // edge case
+bool TableModel::addDependency(QPair<int,int> dependency, QPair<int,int> dependent) {
+    if(dependency == dependent) return false;
+
+    QSet<QPair<int,int>> visited;
+    if (hasPath(dependent, dependency, visited)) {
+        return false;
+    }
+
     dependencyGraph[dependency].append(dependent);
+    return true;
+}
+
+bool TableModel::hasPath(QPair<int,int> current, QPair<int,int> target, QSet<QPair<int,int>>& visited) {
+    if (current == target) return true;
+    if (visited.contains(current)) return false;
+
+    visited.insert(current);
+
+    for (const auto& nextCell : dependencyGraph.value(current)) {
+        if (hasPath(nextCell, target, visited)) {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 void TableModel::removeDependency(QPair<int,int> dependency, QPair<int,int> dependent) {

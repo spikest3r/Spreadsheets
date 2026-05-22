@@ -57,7 +57,8 @@ protected:
 public:
     QHash<QPair<int,int>, QList<QPair<int,int>>> dependencyGraph;
     QMap<QPair<int,int>, QString> computedValues;
-    void addDependency(QPair<int,int> dependency, QPair<int,int> dependent);
+    bool addDependency(QPair<int,int> dependency, QPair<int,int> dependent);
+    bool hasPath(QPair<int,int> current, QPair<int,int> target, QSet<QPair<int,int>>& visited);
     void removeDependency(QPair<int,int> dependency, QPair<int,int> dependent);
     void clearDependencies(QPair<int,int> dependent);
     QList<QPair<int,int>> getDependents(QPair<int,int> dependency);

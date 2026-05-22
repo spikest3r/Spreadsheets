@@ -43,7 +43,8 @@ enum FormulaParserError {
     MATH_EVALUATION_ERROR,
     INCORRECT_ARGUMENT_COUNT,
     NON_NUMERIC_VALUE,
-    INVALID_SYNTAX
+    INVALID_SYNTAX,
+    REFERENCE
 };
 
 enum SmartFillError {

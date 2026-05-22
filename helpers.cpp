@@ -19,6 +19,7 @@ QString Widget::getErrorMessage(FormulaParserError error) {
     case INCORRECT_ARGUMENT_COUNT: return "Wrong number of arguments";
     case NON_NUMERIC_VALUE:        return "Expected a numeric value";
     case INVALID_SYNTAX:           return "Invalid formula syntax";
+    case REFERENCE:                return "Invalid reference";
     case FPE_NONE:
     default:                       return "";
     }
@@ -30,6 +31,7 @@ QString Widget::getCellError(FormulaParserError error) {
     case INCORRECT_ARGUMENT_COUNT: return "#N/A";
     case NON_NUMERIC_VALUE:        return "#VALUE!";
     case INVALID_SYNTAX:           return "#ERROR!";
+    case REFERENCE:                return "#REF!";
     case FPE_NONE:
     default:                       return "";
     }
@@ -40,4 +42,6 @@ FormulaParserError Widget::STR2FPE(QString str) {
     if(str == "#N/A") return INCORRECT_ARGUMENT_COUNT;
     if(str == "#VALUE!") return NON_NUMERIC_VALUE;
     if(str == "#ERROR!") return INVALID_SYNTAX;
+    if(str == "#REF!") return REFERENCE;
+    return FPE_NONE;
 }

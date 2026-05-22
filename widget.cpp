@@ -296,11 +296,18 @@ void Widget::onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottom
                 float result = parseFormula(text, error, deps);
                 QString cellValue = error != FPE_NONE ? getCellError(error) : QString("%0").arg(result);
                 if (error != FPE_NONE) pushStatusMessage(getErrorMessage(error));
-                model->computedValues[{row, col}] = cellValue;
                 model->clearDependencies({row, col});
                 for (QPair<int,int> dep : deps) {
-                    model->addDependency(dep, {row, col});
+                    bool ok = model->addDependency(dep, {row, col});
+                    if(!ok) {
+                        error = REFERENCE;
+                        pushStatusMessage(getErrorMessage(error));
+                        model->clearDependencies({row,col});
+                        cellValue = getCellError(error);
+                        break;
+                    }
                 }
+                model->computedValues[{row, col}] = cellValue;
             }
 
             auto dependents = model->getDependents({row, col});
