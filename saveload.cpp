@@ -3,7 +3,7 @@
 // Save table
 
 QDataStream& operator<<(QDataStream& ds, const Cell& cell) {
-    ds << cell.value << cell.cellColor << cell.textColor;
+    ds << cell.value << cell.cellColor << cell.textColor << cell.fontFlags << cell.styled;
     return ds;
 }
 
@@ -41,7 +41,7 @@ bool TableModel::saveToFile(const QString& path) {
 // Load table
 
 QDataStream& operator>>(QDataStream& ds, Cell& cell) {
-    ds >> cell.value >> cell.cellColor >> cell.textColor;
+    ds >> cell.value >> cell.cellColor >> cell.textColor >> cell.fontFlags >> cell.styled;
     return ds;
 }
 

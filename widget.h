@@ -104,6 +104,15 @@ private:
     bool saveBtn();
     bool loadBtn();
     void newBtn();
+    void styleBrushBtn(bool smartFill = false);
+    void removeStylesBtn();
+
+    // formatting buttons
+    void toggleStyleFlag(quint8 flag);
+    void boldBtn();
+    void italicBtn();
+    void underlineBtn();
+    void strikethroughBtn();
 
     bool isSaved = false;
     bool modifiedSinceSave = false;

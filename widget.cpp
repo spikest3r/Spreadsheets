@@ -73,10 +73,38 @@ Widget::Widget(QWidget *parent)
     connect(smartFillAction, &QAction::triggered, this, &Widget::smartFillBtn);
 
     QMenu* styleMenu = menuBar->addMenu("Style");
+
+    QAction* boldAction = styleMenu->addAction("Bold");
+    boldAction->setShortcut(QKeySequence::Bold);
+    connect(boldAction, &QAction::triggered, this, &Widget::boldBtn);
+
+    QAction* italicAction = styleMenu->addAction("Italic");
+    italicAction->setShortcut(QKeySequence::Italic);
+    connect(italicAction, &QAction::triggered, this, &Widget::italicBtn);
+
+    QAction* underlineAction = styleMenu->addAction("Underline");
+    underlineAction->setShortcut(QKeySequence::Underline);
+    connect(underlineAction, &QAction::triggered, this, &Widget::underlineBtn);
+
+    QAction* strikethruAction = styleMenu->addAction("Strike-through");
+    connect(strikethruAction, &QAction::triggered, this, &Widget::strikethroughBtn);
+
+    styleMenu->addSeparator();
+
     QAction* cellBgAction = styleMenu->addAction("Set cell background color");
     connect(cellBgAction, &QAction::triggered, this, &Widget::bgColorBtn);
     QAction* cellFgAction = styleMenu->addAction("Set cell text color");
     connect(cellFgAction, &QAction::triggered, this, &Widget::fgColorBtn);
+
+    styleMenu->addSeparator();
+
+    QAction* styleBrushAction = styleMenu->addAction("Style Brush");
+    styleBrushAction->setShortcut(QKeySequence("F3"));
+    connect(styleBrushAction, &QAction::triggered, this, &Widget::styleBrushBtn);
+
+    QAction* removeStylesAction = styleMenu->addAction("Clear styles");
+    removeStylesAction->setShortcut(QKeySequence("Shift+F3"));
+    connect(removeStylesAction, &QAction::triggered, this, &Widget::removeStylesBtn);
 
     layout->addWidget(menuBar);
 
@@ -376,6 +404,8 @@ void Widget::smartFillBtn() {
         QMessageBox::warning(this, "Smart Fill error", message);
         pushStatusMessage("Smart Fill failed");
     } else {
+        styleBrushBtn(true);
+
         QString status;
         switch(op) {
         case ARITHMETIC_PROGRESSION:
@@ -408,87 +438,6 @@ void Widget::redoBtn() {
     bool ok = ((TableModel*)view->model())->redoEdit();
     if(ok) pushStatusMessage("Redo edit");
     else pushStatusMessage("Nothing to redo");
-}
-
-
-void Widget::bgColorBtn() {
-    QColor initialColor = Qt::black;
-
-    QColor selectedColor = QColorDialog::getColor(
-        initialColor,               // Default selected color
-        this,                       // Parent widget
-        "Select Cell Background"    // Dialog title
-        );
-
-    if (selectedColor.isValid()) {
-        auto model = (TableModel*)view->model();
-        auto selected = view->selectionModel();
-
-        QModelIndexList indexes = selected->selectedIndexes();
-        if (indexes.isEmpty()) {
-            pushStatusMessage("No cells selected");
-            return;
-        }
-
-        int minRow = INT_MAX, minCol = INT_MAX;
-        int maxRow = INT_MIN, maxCol = INT_MIN;
-
-        for (const QModelIndex& idx : indexes) {
-            minRow = qMin(minRow, idx.row());
-            minCol = qMin(minCol, idx.column());
-            maxRow = qMax(maxRow, idx.row());
-            maxCol = qMax(maxCol, idx.column());
-        }
-
-        QPair<int,int> topLeft     = {minRow, minCol};
-        QPair<int,int> bottomRight = {maxRow, maxCol};
-
-        model->setCellColor(topLeft, bottomRight, selectedColor);
-
-        pushStatusMessage("Updated cell color");
-    } else {
-        pushStatusMessage("Color selection canceled");
-    }
-}
-
-void Widget::fgColorBtn() {
-    QColor initialColor = Qt::white;
-
-    QColor selectedColor = QColorDialog::getColor(
-        initialColor,               // Default selected color
-        this,                       // Parent widget
-        "Select Text Color"    // Dialog title
-        );
-
-    if (selectedColor.isValid()) {
-        auto model = (TableModel*)view->model();
-        auto selected = view->selectionModel();
-
-        QModelIndexList indexes = selected->selectedIndexes();
-        if (indexes.isEmpty()) {
-            pushStatusMessage("No cells selected");
-            return;
-        }
-
-        int minRow = INT_MAX, minCol = INT_MAX;
-        int maxRow = INT_MIN, maxCol = INT_MIN;
-
-        for (const QModelIndex& idx : indexes) {
-            minRow = qMin(minRow, idx.row());
-            minCol = qMin(minCol, idx.column());
-            maxRow = qMax(maxRow, idx.row());
-            maxCol = qMax(maxCol, idx.column());
-        }
-
-        QPair<int,int> topLeft     = {minRow, minCol};
-        QPair<int,int> bottomRight = {maxRow, maxCol};
-
-        model->setTextColor(topLeft, bottomRight, selectedColor);
-
-        pushStatusMessage("Updated cell color");
-    } else {
-        pushStatusMessage("Color selection canceled");
-    }
 }
 
 bool Widget::saveBtn() {
@@ -539,48 +488,6 @@ bool Widget::loadBtn() {
         }
     }
     return false;
-}
-
-QString Widget::getErrorMessage(SmartFillError error) {
-    switch (error) {
-    case SFE_NONE:       return "";
-    case NODATA:         return "No data to fill from.";
-    case TWODIMRANGE:    return "Select a single row or column.";
-    case INVALIDDATA:    return "Selection contains non-numeric data.";
-    case BADPATTERN:     return "No pattern detected. Try Simple Fill (Shift+F2).";
-    case MIXED_TYPES: return "Selection mixes formulas and values.";
-    case NOCELLREFS: return "Formula contains no cell references to offset.";
-    case NOTIMPLEMENTED: return "Not implemented yet.";
-    }
-}
-
-QString Widget::getErrorMessage(FormulaParserError error) {
-    switch (error) {
-    case MATH_EVALUATION_ERROR:    return "Mathematical calculation error";
-    case INCORRECT_ARGUMENT_COUNT: return "Wrong number of arguments";
-    case NON_NUMERIC_VALUE:        return "Expected a numeric value";
-    case INVALID_SYNTAX:           return "Invalid formula syntax";
-    case FPE_NONE:
-    default:                       return "";
-    }
-}
-
-QString Widget::getCellError(FormulaParserError error) {
-    switch (error) {
-    case MATH_EVALUATION_ERROR:    return "#NUM!";
-    case INCORRECT_ARGUMENT_COUNT: return "#N/A";
-    case NON_NUMERIC_VALUE:        return "#VALUE!";
-    case INVALID_SYNTAX:           return "#ERROR!";
-    case FPE_NONE:
-    default:                       return "";
-    }
-}
-
-FormulaParserError Widget::STR2FPE(QString str) {
-    if(str == "#NUM!") return MATH_EVALUATION_ERROR;
-    if(str == "#N/A") return INCORRECT_ARGUMENT_COUNT;
-    if(str == "#VALUE!") return NON_NUMERIC_VALUE;
-    if(str == "#ERROR!") return INVALID_SYNTAX;
 }
 
 void Widget::pushStatusMessage(QString message) {

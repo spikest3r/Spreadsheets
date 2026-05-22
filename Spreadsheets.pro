@@ -11,10 +11,12 @@ CONFIG += c++17
 SOURCES += \
     evaluationengine.cpp \
     formulaparser.cpp \
+    helpers.cpp \
     main.cpp \
     operations.cpp \
     saveload.cpp \
     smartfill.cpp \
+    styles.cpp \
     tablemodel.cpp \
     widget.cpp
 

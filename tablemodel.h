@@ -9,13 +9,8 @@
 #include <QApplication>
 #include <variant>
 #include <QFile>
+#include <QFont>
 #include "global.h"
-
-struct Cell {
-    QVariant value;
-    QColor cellColor;
-    QColor textColor;
-};
 
 struct CellEdit {
     QPair<int, int> cell;
@@ -69,8 +64,10 @@ public:
     bool undoLastEdit();
     bool redoEdit();
 
-    void setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color);
-    void setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color);
+    void setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color, bool flagStyled = true);
+    void setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color, bool flagStyled = true);
+    void setRangeFontFlag(QPair<int,int> topLeft, QPair<int,int> bottomRight, quint8 flag, bool on, bool flagStyled = true);
+    void setRangeFontFlags(QPair<int,int> topLeft, QPair<int,int> bottomRight, quint8 flags, bool flagStyled = true);
     void setRangeValue(QPair<int, int> topLeft, QPair<int, int> bottomRight, QString value);
     void setRangeValues(QPair<int,int> topLeft, QPair<int,int> bottomRight,
                         QVector<QString> values, FillDirection fd);
@@ -78,6 +75,8 @@ public:
     bool saveToFile(const QString& path);
     bool loadFromFile(const QString& path);
     void reset();
+
+    Cell* getCell(int row, int col);
 
     QColor defaultBg;
     QColor defaultFg;

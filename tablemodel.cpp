@@ -33,6 +33,19 @@ QVariant TableModel::data(const QModelIndex &index, int role) const
         }
     }
 
+    if(role == Qt::FontRole) {
+        if (r < data_.size() && c < data_[r].size()) {
+            Cell cell = data_[index.row()][index.column()];
+            QFont font;
+            font.setBold(cell.fontFlags & FF_Bold);
+            font.setItalic(cell.fontFlags & FF_Italic);
+            font.setUnderline(cell.fontFlags & FF_Underline);
+            font.setStrikeOut(cell.fontFlags & FF_StrikeOut);
+            return font;
+        }
+        return QFont();
+    }
+
     if (role == Qt::EditRole)
     {
         if (r < data_.size() && c < data_[r].size())
@@ -139,7 +152,7 @@ bool TableModel::redoEdit() {
     return true;
 }
 
-void TableModel::setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color) {
+void TableModel::setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color, bool flagStyled) {
     checkSize(bottomRight.first, bottomRight.second);
 
     if(!redoStack.empty()) redoStack.clear();
@@ -159,6 +172,7 @@ void TableModel::setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRig
         for(int j = left; j <= right; j++) {
             op.before[i - top].push_back(data_[i][j]);
             data_[i][j].cellColor = color;
+            data_[i][j].styled = flagStyled;
             op.after[i - top].push_back(data_[i][j]);
             emit dataChanged(index(i, j), index(i, j));
         }
@@ -167,7 +181,7 @@ void TableModel::setCellColor(QPair<int, int> topLeft, QPair<int, int> bottomRig
     editStack.push_back(op);
 }
 
-void TableModel::setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color) {
+void TableModel::setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRight, QColor color, bool flagStyled) {
     checkSize(bottomRight.first, bottomRight.second);
 
     if(!redoStack.empty()) redoStack.clear();
@@ -187,12 +201,58 @@ void TableModel::setTextColor(QPair<int, int> topLeft, QPair<int, int> bottomRig
         for(int j = left; j <= right; j++) {
             op.before[i - top].push_back(data_[i][j]);
             data_[i][j].textColor = color;
+            data_[i][j].styled = flagStyled;
             op.after[i - top].push_back(data_[i][j]);
             emit dataChanged(index(i, j), index(i, j));
         }
     }
 
     editStack.push_back(op);
+}
+
+void TableModel::setRangeFontFlag(QPair<int,int> topLeft, QPair<int,int> bottomRight, quint8 flag, bool on, bool flagStyled) {
+    int top = topLeft.first, left = topLeft.second;
+    int bottom = bottomRight.first, right = bottomRight.second;
+    checkSize(bottom, right);
+    if (!redoStack.empty()) redoStack.clear();
+    RangeEdit op;
+    op.topLeft = topLeft;
+    op.bottomRight = bottomRight;
+    for (int i = top; i <= bottom; i++) {
+        op.before.push_back({});
+        op.after.push_back({});
+        for (int j = left; j <= right; j++) {
+            op.before[i - top].push_back(data_[i][j]);
+            if (on) data_[i][j].fontFlags |= flag;
+            else    data_[i][j].fontFlags &= ~flag;
+            data_[i][j].styled = flagStyled;
+            op.after[i - top].push_back(data_[i][j]);
+        }
+    }
+    editStack.push_back(op);
+    emit dataChanged(index(top, left), index(bottom, right));
+}
+
+void TableModel::setRangeFontFlags(QPair<int,int> topLeft, QPair<int,int> bottomRight, quint8 flags, bool flagStyled) {
+    int top = topLeft.first, left = topLeft.second;
+    int bottom = bottomRight.first, right = bottomRight.second;
+    checkSize(bottom, right);
+    if (!redoStack.empty()) redoStack.clear();
+    RangeEdit op;
+    op.topLeft = topLeft;
+    op.bottomRight = bottomRight;
+    for (int i = top; i <= bottom; i++) {
+        op.before.push_back({});
+        op.after.push_back({});
+        for (int j = left; j <= right; j++) {
+            op.before[i - top].push_back(data_[i][j]);
+            data_[i][j].fontFlags = flags;
+            data_[i][j].styled = flagStyled;
+            op.after[i - top].push_back(data_[i][j]);
+        }
+    }
+    editStack.push_back(op);
+    emit dataChanged(index(top, left), index(bottom, right));
 }
 
 void TableModel::setRangeValue(QPair<int, int> topLeft, QPair<int, int> bottomRight, QString value) {
@@ -295,4 +355,9 @@ void TableModel::reset() {
     editStack.clear();
     redoStack.clear();
     endResetModel();
+}
+
+Cell* TableModel::getCell(int row, int col) {
+    checkSize(row, col);
+    return &data_[row][col];
 }
