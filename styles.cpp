@@ -147,6 +147,12 @@ void Widget::styleBrushBtn(bool smartFill) {
         dominant = &styles[0];
     }
 
+    if(dominant == nullptr) {
+        // all cells had styled == false
+        pushStatusMessage("Style Brush: No style to apply");
+        return;
+    }
+
     // 2. apply most common style pattern to all cells
     model->setCellColor(topLeft, bottomRight, dominant->cellColor);
     model->setTextColor(topLeft, bottomRight, dominant->textColor);
