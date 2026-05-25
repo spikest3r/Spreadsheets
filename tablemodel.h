@@ -51,8 +51,8 @@ protected:
     QVector<EditOperation> editStack;
     QVector<EditOperation> redoStack; // push what was undid, purge on new edit
     void checkSize(int r, int c);
-    void applyCell(QPair<int, int> cell, Cell before);
-    void applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> before);
+    void applyCell_internal(QPair<int, int> cell, Cell before);
+    void applyRange_internal(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> before);
 
 public:
     QHash<QPair<int,int>, QList<QPair<int,int>>> dependencyGraph;
@@ -72,6 +72,8 @@ public:
     void setRangeValue(QPair<int, int> topLeft, QPair<int, int> bottomRight, QString value);
     void setRangeValues(QPair<int,int> topLeft, QPair<int,int> bottomRight,
                         QVector<QString> values, FillDirection fd);
+    void applyCell(QPair<int, int> topLeft, Cell cell);
+    void applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> range);
 
     bool saveToFile(const QString& path);
     bool loadFromFile(const QString& path);

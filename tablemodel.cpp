@@ -143,9 +143,9 @@ bool TableModel::undoLastEdit() {
     std::visit([&](auto&& op) {
         using T = std::decay_t<decltype(op)>;
         if constexpr (std::is_same_v<T, CellEdit>) {
-            applyCell(op.cell, op.before);
+            applyCell_internal(op.cell, op.before);
         } else if constexpr (std::is_same_v<T, RangeEdit>) {
-            applyRange(op.topLeft, op.bottomRight, op.before);
+            applyRange_internal(op.topLeft, op.bottomRight, op.before);
         }
     }, op);
 
@@ -163,9 +163,9 @@ bool TableModel::redoEdit() {
     std::visit([&](auto&& op) {
         using T = std::decay_t<decltype(op)>;
         if constexpr (std::is_same_v<T, CellEdit>) {
-            applyCell(op.cell, op.after);
+            applyCell_internal(op.cell, op.after);
         } else if constexpr (std::is_same_v<T, RangeEdit>) {
-            applyRange(op.topLeft, op.bottomRight, op.after);
+            applyRange_internal(op.topLeft, op.bottomRight, op.after);
         }
     }, op);
 
@@ -349,7 +349,7 @@ void TableModel::checkSize(int r, int c) {
     }
 }
 
-void TableModel::applyCell(QPair<int, int> cell, Cell before) {
+void TableModel::applyCell_internal(QPair<int, int> cell, Cell before) {
     int r = cell.first;
     int c = cell.second;
     checkSize(r, c);
@@ -357,7 +357,7 @@ void TableModel::applyCell(QPair<int, int> cell, Cell before) {
     emit this->dataChanged(this->index(r, c), this->index(r, c));
 }
 
-void TableModel::applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> before) {
+void TableModel::applyRange_internal(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> before) {
     int top = topLeft.first;
     int left = topLeft.second;
     int bottom = bottomRight.first;
@@ -369,6 +369,50 @@ void TableModel::applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight
             emit this->dataChanged(this->index(i, j), this->index(i, j));
         }
     }
+}
+
+void TableModel::applyCell(QPair<int, int> topLeft, Cell cell) {
+    int r = topLeft.first;
+    int c = topLeft.second;
+    checkSize(r, c);
+
+    CellEdit op;
+    op.cell = {r, c};
+    op.before = data_[r][c];
+
+    data_[r][c] = cell;
+
+    op.after = data_[r][c];
+
+    editStack.push_back(op);
+
+    emit this->dataChanged(this->index(r, c), this->index(r, c));
+}
+
+void TableModel::applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> range) {
+    checkSize(bottomRight.first, bottomRight.second);
+
+    RangeEdit op;
+    op.topLeft = topLeft;
+    op.bottomRight = bottomRight;
+
+    int top = topLeft.first;
+    int left = topLeft.second;
+    int bottom = bottomRight.first;
+    int right = bottomRight.second;
+
+    for(int i = top; i < bottom + 1; i++) {
+        op.before.push_back({});
+        op.after.push_back({});
+        for(int j = left; j < right + 1; j++) {
+            op.before[i - top].push_back(data_[i][j]);
+            data_[i][j] = range[i - top][j - left];
+            op.after[i - top].push_back(data_[i][j]);
+            emit this->dataChanged(this->index(i, j), this->index(i, j));
+        }
+    }
+
+    editStack.push_back(op);
 }
 
 void TableModel::reset() {

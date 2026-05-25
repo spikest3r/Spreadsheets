@@ -143,6 +143,8 @@ private:
     QString getCellError(FormulaParserError error);
     FormulaParserError STR2FPE(QString cellError);
 
+    QVector<QVector<Cell>> copyBuffer;
+
     void pushStatusMessage(QString message);
     QTimer* statusMessageTimer;
     void statusMessageTimerAction();

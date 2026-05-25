@@ -137,6 +137,10 @@ void Widget::styleBrushBtn(bool smartFill) {
             }
             if (!found) styles.push_back({bg, fg, fs, 1});
         }
+        if(styles.size() < 1) {
+            pushStatusMessage("Style Brush: No style to apply");
+            return;
+        }
         dominant = &styles[0];
         for (StyleCount& sc : styles) {
             if (sc.count > dominant->count) dominant = &sc;

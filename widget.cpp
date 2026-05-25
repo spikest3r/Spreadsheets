@@ -272,8 +272,66 @@ void Widget::keyPressEvent(QKeyEvent* event) {
             model->setRangeValue(topLeft, bottomRight, "");
             return;
         }
+    } else if (event->matches(QKeySequence::Copy)) {
+        // Handle Ctrl+C
+        pushStatusMessage("Copy");
+        copyBuffer.clear();
+
+        auto model = (TableModel*)view->model();
+        auto selected = view->selectionModel()->selectedIndexes();
+
+        int minRow = INT_MAX, maxRow = INT_MIN;
+        int minCol = INT_MAX, maxCol = INT_MIN;
+
+        for (const auto &idx : selected) {
+            minRow = std::min(minRow, idx.row());
+            maxRow = std::max(maxRow, idx.row());
+            minCol = std::min(minCol, idx.column());
+            maxCol = std::max(maxCol, idx.column());
+        }
+
+        for (int row = minRow; row <= maxRow; row++) {
+            copyBuffer.push_back({});
+            for (int col = minCol; col <= maxCol; col++) {
+                auto cell = model->getCell(row, col);
+                copyBuffer.back().push_back(*cell);
+            }
+        }
+
+        event->accept();
+    } else if (event->matches(QKeySequence::Paste)) {
+        // Handle Ctrl+V
+        auto model = (TableModel*)view->model();
+        auto selected = view->selectionModel()->selectedIndexes();
+
+        if(copyBuffer.empty()) {
+            pushStatusMessage("Nothing to paste");
+        } else {
+            pushStatusMessage("Paste");
+
+            // get top left ordered
+            auto first = selected.first();
+            for (auto& idx : selected) {
+                if (idx.row() < first.row() ||
+                    (idx.row() == first.row() && idx.column() < first.column()))
+                    first = idx;
+            }
+            int row = first.row();
+            int col = first.column();
+
+            // uniform rectangular region
+            QPair<int, int> topLeft = {row, col};
+            QPair<int, int> bottomRight = {
+                row + copyBuffer.size() - 1,
+                col + copyBuffer[0].size() - 1
+            };
+
+            model->applyRange(topLeft, bottomRight, copyBuffer);
+        }
+        event->accept();
+    } else {
+        QWidget::keyPressEvent(event); // pass unhandled events up
     }
-    QWidget::keyPressEvent(event);
 }
 
 void Widget::onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottomRight)
@@ -476,6 +534,7 @@ bool Widget::saveBtn() {
             return true;
         }
     }
+    return false;
 }
 
 bool Widget::loadBtn() {
