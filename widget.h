@@ -35,6 +35,8 @@ enum FormulaOP {
     ROUND,
     FLOOR,
     CEIL,
+    AVERAGE,
+    RANGE,
     PI
 };
 
@@ -131,8 +133,8 @@ private:
     QLabel *labelSum;
     QLabel *labelCount;
 
-    float parseFormula(QString formula, FormulaParserError& err, QSet<QPair<int,int>>& dependencies);
-    float parseOperation(FormulaOP operation, std::vector<QString> args, FormulaParserError& error, QSet<QPair<int,int>>& dependencies);
+    QString parseFormula(QString formula, FormulaParserError& err, QSet<QPair<int,int>>& dependencies);
+    QString parseOperation(FormulaOP operation, std::vector<QString> args, FormulaParserError& error, QSet<QPair<int,int>>& dependencies);
     FormulaOP strToOp(QString str);
     std::vector<QString> tokenizeFormula(QString formula);
     std::vector<QString> evaluateExpression(std::vector<QString> tokens, FormulaParserError& err, QSet<QPair<int,int>>& dependencies);

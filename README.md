@@ -12,6 +12,7 @@ This project implements a lightweight spreadsheet experience with:
 - saving and loading spreadsheet data
 - formatting (text and background colors, font styles)
 - basic spreadsheet operations and Smart Fill (arithmetic and geometrical progressions, formula cell index offset)
+- copy & paste
 
 ## Build Instructions
 
@@ -43,7 +44,6 @@ mingw32-make
 
 - two-dimensional Smart Fill
 - better Style Brush (pattern based)
-- cell copy/paste
 - RANGE() function for formulas
 - Find & Replace
 - Print support

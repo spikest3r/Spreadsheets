@@ -351,8 +351,8 @@ void Widget::onDataChanged(const QModelIndex &topLeft, const QModelIndex &bottom
             if (text.startsWith("=")) {
                 FormulaParserError error = FPE_NONE;
                 QSet<QPair<int,int>> deps;
-                float result = parseFormula(text, error, deps);
-                QString cellValue = error != FPE_NONE ? getCellError(error) : QString("%0").arg(result);
+                QString result = parseFormula(text, error, deps);
+                QString cellValue = error != FPE_NONE ? getCellError(error) : result;
                 if (error != FPE_NONE) pushStatusMessage(getErrorMessage(error));
                 model->clearDependencies({row, col});
                 for (QPair<int,int> dep : deps) {
