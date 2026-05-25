@@ -8,7 +8,7 @@ A simple Qt-based spreadsheet application written in C++.
 
 This project implements a lightweight spreadsheet experience with:
 - cell entry and navigation
-- formula parsing and evaluation
+- formula parsing (with ranges) and evaluation
 - saving and loading spreadsheet data
 - formatting (text and background colors, font styles)
 - basic spreadsheet operations and Smart Fill (arithmetic and geometrical progressions, formula cell index offset)
@@ -44,7 +44,6 @@ mingw32-make
 
 - two-dimensional Smart Fill
 - better Style Brush (pattern based)
-- RANGE() function for formulas
 - Find & Replace
 - Print support
 
