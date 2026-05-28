@@ -1,5 +1,6 @@
 #include "widget.h"
 #include "tablemodel.h"
+#include "about.h"
 
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
@@ -60,6 +61,9 @@ Widget::Widget(QWidget *parent)
     QAction* redoAction = fileMenu->addAction("Redo");
     redoAction->setShortcut(QKeySequence::Redo);
     connect(redoAction, &QAction::triggered, this, &Widget::redoBtn);
+    fileMenu->addSeparator();
+    QAction *aboutAction = fileMenu->addAction("About");
+    connect(aboutAction, &QAction::triggered, this, &Widget::aboutBtn);
 
     QMenu* opsMenu = menuBar->addMenu("Data");
     QMenu* rangeMenu = opsMenu->addMenu("Range");
@@ -568,4 +572,10 @@ void Widget::pushStatusMessage(QString message) {
 
 void Widget::statusMessageTimerAction() {
     statusBarText->setText("Ready");
+}
+
+void Widget::aboutBtn() {
+    about *dialogAbout = new about();
+    dialogAbout->exec();
+    delete dialogAbout;
 }

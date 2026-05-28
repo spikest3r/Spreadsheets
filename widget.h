@@ -109,6 +109,7 @@ private:
     void newBtn();
     void styleBrushBtn(bool smartFill = false);
     void removeStylesBtn();
+    void aboutBtn();
 
     // formatting buttons
     void toggleStyleFlag(quint8 flag);

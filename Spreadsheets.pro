@@ -18,13 +18,15 @@ SOURCES += \
     smartfill.cpp \
     styles.cpp \
     tablemodel.cpp \
-    widget.cpp
+    widget.cpp \
+    about.cpp
 
 HEADERS += \
     evaluationengine.h \
     global.h \
     tablemodel.h \
-    widget.h
+    widget.h \
+    about.h
 
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
