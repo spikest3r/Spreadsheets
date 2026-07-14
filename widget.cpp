@@ -116,8 +116,7 @@ Widget::Widget(QWidget *parent)
     removeStylesAction->setShortcut(QKeySequence("Shift+F3"));
     connect(removeStylesAction, &QAction::triggered, this, &Widget::removeStylesBtn);
 
-    QMenu* scriptingMenu = menuBar->addMenu("Scripting");
-    QAction* scriptEditorAction = scriptingMenu->addAction("Script editor");
+    QAction* scriptEditorAction = menuBar->addAction("Scripting");
     connect(scriptEditorAction, &QAction::triggered, this, &Widget::scriptEditorBtn);
 
     layout->addWidget(menuBar);
@@ -160,6 +159,8 @@ Widget::Widget(QWidget *parent)
     statusMessageTimer->setInterval(2500);
     statusMessageTimer->setSingleShot(true);
     connect(statusMessageTimer, &QTimer::timeout, this, &Widget::statusMessageTimerAction);
+
+    ScriptingPanel::initialize();
 
     view->show();
 }
@@ -527,7 +528,7 @@ bool Widget::saveBtn() {
     if(!isSaved) {
         QString path = QFileDialog::getSaveFileName(this, "Save File", "", "Table Files (*.tblx);;All Files (*)");
         if (!path.isEmpty()) {
-            if (!model->saveToFile(path)) {
+            if (!model->saveToFile(path, ScriptingPanel::scripts)) {
                 QMessageBox::critical(this, "Error", "Failed to save file.");
                 return false;
             }
@@ -540,7 +541,7 @@ bool Widget::saveBtn() {
             }
         }
     } else {
-        if (!model->saveToFile(filename)) {
+        if (!model->saveToFile(filename, ScriptingPanel::scripts)) {
             QMessageBox::critical(this, "Error", "Failed to save file.");
             return false;
         }
@@ -558,7 +559,7 @@ bool Widget::loadBtn() {
     auto model = (TableModel*)view->model();
     QString path = QFileDialog::getOpenFileName(this, "Open File", "", "Table Files (*.tblx);;All Files (*)");
     if (!path.isEmpty()) {
-        if (!model->loadFromFile(path)) {
+        if (!model->loadFromFile(path, ScriptingPanel::scripts)) {
             QMessageBox::critical(this, "Error", "Failed to load file.");
             return false;
         }
@@ -567,6 +568,7 @@ bool Widget::loadBtn() {
             modifiedSinceSave = false;
             filename = path;
             pushStatusMessage("File opened");
+            ScriptingPanel::updateMenu();
             return true;
         }
     }
@@ -599,4 +601,8 @@ void Widget::aboutBtn() {
 
 TableModel* Widget::getTableModel() {
     return (TableModel*)view->model();
+}
+
+void Widget::setModifiedFlag() {
+    modifiedSinceSave = true;
 }

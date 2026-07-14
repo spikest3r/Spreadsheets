@@ -24,4 +24,10 @@ enum FontFlag {
     FF_Underline = 1 << 2, // 0b00000100
     FF_StrikeOut = 1 << 3, // 0b00001000
 };
+
+struct Script {
+    QString name;
+    QString code;
+};
+
 #endif // GLOBAL_H

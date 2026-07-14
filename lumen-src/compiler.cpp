@@ -30,7 +30,10 @@ std::unordered_map<std::string, int> funcList = {
     {"print", 0x02},
     {"inputInt", 0x03},
     {"inputStr", 0x04},
-    {"setCell", 0xAA00}
+    {"str2int", 0x05},
+    {"int2str", 0x06},
+    {"setCell", 0xAA00},
+    {"getCell", 0xAA01},
 };
 
 void printError(std::string error, int line) {

@@ -21,20 +21,23 @@ QDataStream& operator<<(QDataStream& ds, const EditOperation& op) {
     return ds;
 }
 
-bool TableModel::saveToFile(const QString& path) {
+QDataStream& operator<<(QDataStream& ds, const Script& script) {
+    ds << script.name << script.code;
+    return ds;
+}
+
+bool TableModel::saveToFile(const QString& path, const QVector<Script>& scripts) {
     QFile file(path);
     if (!file.open(QIODevice::WriteOnly)) return false;
-
     QDataStream ds(&file);
     ds.setVersion(QDataStream::Qt_6_0);
-
     // Header
     ds << (quint32)0x54424C58; // magic "TBLX"
-    ds << (quint32)1;          // version
-
+    ds << (quint32)2;          // version
     // Edit stack
     ds << editStack;
-
+    // Scripts (v2+)
+    ds << scripts;
     return ds.status() == QDataStream::Ok;
 }
 
@@ -63,23 +66,33 @@ QDataStream& operator>>(QDataStream& ds, EditOperation& op) {
     return ds;
 }
 
-bool TableModel::loadFromFile(const QString& path) {
+QDataStream& operator>>(QDataStream& ds, Script& script) {
+    ds >> script.name >> script.code;
+    return ds;
+}
+
+bool TableModel::loadFromFile(const QString& path, QVector<Script>& scripts) {
     QFile file(path);
     if (!file.open(QIODevice::ReadOnly)) return false;
-
     QDataStream ds(&file);
     ds.setVersion(QDataStream::Qt_6_0);
-
     // Validate header
     quint32 magic, version;
     ds >> magic >> version;
     if (magic != 0x54424C58) return false;
-    if (version != 1) return false;
+    if (version != 1 && version != 2) return false;
 
     // Load stack
     QVector<EditOperation> loadedStack;
     ds >> loadedStack;
     if (ds.status() != QDataStream::Ok) return false;
+
+    // Load scripts — only present in v2+
+    QVector<Script> loadedScripts;
+    if (version >= 2) {
+        ds >> loadedScripts;
+        if (ds.status() != QDataStream::Ok) return false;
+    }
 
     // Reset state
     data_.clear();
@@ -91,13 +104,14 @@ bool TableModel::loadFromFile(const QString& path) {
         std::visit([&](auto&& o) {
             using T = std::decay_t<decltype(o)>;
             if constexpr (std::is_same_v<T, CellEdit>) {
-                applyCell(o.cell, o. after);
+                applyCell(o.cell, o.after);
             } else if constexpr (std::is_same_v<T, RangeEdit>) {
                 applyRange(o.topLeft, o.bottomRight, o.after);
             }
         }, op);
     }
-
     editStack = loadedStack;
+    scripts = loadedScripts; // empty for v1 files, populated for v2
+
     return true;
 }

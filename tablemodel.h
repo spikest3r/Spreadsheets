@@ -75,8 +75,8 @@ public:
     void applyCell(QPair<int, int> topLeft, Cell cell);
     void applyRange(QPair<int, int> topLeft, QPair<int, int> bottomRight, QVector<QVector<Cell>> range);
 
-    bool saveToFile(const QString& path);
-    bool loadFromFile(const QString& path);
+    bool saveToFile(const QString& path, const QVector<Script>& scripts);
+    bool loadFromFile(const QString& path, QVector<Script>& scripts);
     void reset();
 
     Cell* getCell(int row, int col);

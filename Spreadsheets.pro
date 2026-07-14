@@ -11,6 +11,7 @@ CONFIG += c++20
 SOURCES += \
     evaluationengine.cpp \
     formulaparser.cpp \
+    functionreferencedialog.cpp \
     helpers.cpp \
     lumen-src/compiler.cpp \
     lumen-src/compiler_math.cpp \
@@ -31,6 +32,7 @@ SOURCES += \
 
 HEADERS += \
     evaluationengine.h \
+    functionreferencedialog.h \
     global.h \
     lumen-inc/compiler.h \
     lumen-inc/helpers.h \

@@ -83,6 +83,7 @@ public:
     ~Widget();
     static Widget* instance;
     TableModel* getTableModel();
+    void setModifiedFlag();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
