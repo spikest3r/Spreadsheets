@@ -1,0 +1,90 @@
+#include "lumen-inc/vm.h"
+
+#include "widget.h"
+#include "scriptingpanel.h"
+#include <QInputDialog>
+
+std::unordered_map<int, NativeFn> funcMap = {
+    {0x01, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+        // println
+        auto arg0 = stack.back(); stack.pop_back();
+        std::visit([](const auto& val) {
+            std::ostringstream oss;
+            oss << val;
+            ScriptingPanel::appendOutput(QString::fromStdString(oss.str()));
+        }, arg0.data);
+        ScriptingPanel::appendOutput("\n");
+    }},
+    {0x02, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+        // print
+        auto arg0 = stack.back(); stack.pop_back();
+        std::visit([](const auto& val) {
+            std::ostringstream oss;
+            oss << val;
+            ScriptingPanel::appendOutput(QString::fromStdString(oss.str()));
+        }, arg0.data);
+    }},
+    {0x03, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+        // inputInt
+        auto varIndex = getInt(stack.back()); stack.pop_back();
+
+        bool ok;
+        int value = QInputDialog::getInt(
+            nullptr,
+            "Script Input",
+            "Enter a number:",
+            0,      // default value
+            -2147483647, // min
+            2147483647,  // max
+            1,      // step
+            &ok
+            );
+
+        if(!ok) value = 0;
+
+        variables[varIndex].type = TAG_INT;
+        variables[varIndex].data = value;
+    }},
+    {0x04, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+        // inputStr
+        auto varIndex = getInt(stack.back()); stack.pop_back();
+
+        bool ok;
+        QString text = QInputDialog::getText(
+            Widget::instance,
+            "Script Input",
+            "Enter value:",
+            QLineEdit::Normal,
+            "", // default text
+            &ok
+        );
+
+        if(!ok) text = "";
+
+        variables[varIndex].type = TAG_STRING;
+        variables[varIndex].data = text.toStdString();
+    }},
+    {0xAA00, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+        // setCell
+        auto value = stack.back(); stack.pop_back();
+        auto col = getInt(stack.back()) - 1; stack.pop_back();
+        auto row = getInt(stack.back()) - 1; stack.pop_back();
+
+        auto model = Widget::instance->getTableModel();
+
+        switch(value.type) {
+        case TypeTag::TAG_STRING:
+        {
+            auto cellValue = std::get<std::string>(value.data);
+            model->setData(model->index(row, col), QString::fromStdString(cellValue), Qt::EditRole);
+            break;
+        }
+        case TypeTag::TAG_INT:
+        {
+            auto cellValue = std::get<int64_t>(value.data);
+            model->setData(model->index(row, col), QString::number(cellValue), Qt::EditRole);
+            break;
+        }
+        }
+    }}
+};

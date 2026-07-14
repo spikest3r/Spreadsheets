@@ -81,6 +81,8 @@ class Widget : public QWidget
 public:
     Widget(QWidget *parent = nullptr);
     ~Widget();
+    static Widget* instance;
+    TableModel* getTableModel();
 
 protected:
     void resizeEvent(QResizeEvent *event) override;
@@ -151,5 +153,8 @@ private:
     void pushStatusMessage(QString message);
     QTimer* statusMessageTimer;
     void statusMessageTimerAction();
+
+    // scripting
+    void scriptEditorBtn();
 };
 #endif // WIDGET_H

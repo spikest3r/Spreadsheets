@@ -2,9 +2,15 @@
 #include "tablemodel.h"
 #include "about.h"
 
+#include "scriptingpanel.h"
+
+Widget* Widget::instance = nullptr;
+
 Widget::Widget(QWidget *parent)
     : QWidget(parent)
 {
+    instance = this;
+
     QVBoxLayout *layout = new QVBoxLayout(this);
     layout->setContentsMargins(0, 0, 0, 8);
 
@@ -109,6 +115,10 @@ Widget::Widget(QWidget *parent)
     QAction* removeStylesAction = styleMenu->addAction("Clear styles");
     removeStylesAction->setShortcut(QKeySequence("Shift+F3"));
     connect(removeStylesAction, &QAction::triggered, this, &Widget::removeStylesBtn);
+
+    QMenu* scriptingMenu = menuBar->addMenu("Scripting");
+    QAction* scriptEditorAction = scriptingMenu->addAction("Script editor");
+    connect(scriptEditorAction, &QAction::triggered, this, &Widget::scriptEditorBtn);
 
     layout->addWidget(menuBar);
 
@@ -244,13 +254,16 @@ void Widget::closeEvent(QCloseEvent* event) {
                 return;
             }
             event->accept();
+            ScriptingPanel::closeIfOpen();
         } else if (reply == QMessageBox::No) {
             event->accept();
+            ScriptingPanel::closeIfOpen();
         } else { // Cancel
             event->ignore();
         }
     } else {
         event->accept();
+        ScriptingPanel::closeIfOpen();
     }
 }
 
@@ -560,6 +573,10 @@ bool Widget::loadBtn() {
     return false;
 }
 
+void Widget::scriptEditorBtn() {
+    ScriptingPanel::showPanel();
+}
+
 void Widget::pushStatusMessage(QString message) {
     if(statusMessageTimer->isActive()) {
         statusMessageTimer->stop();
@@ -578,4 +595,8 @@ void Widget::aboutBtn() {
     about *dialogAbout = new about();
     dialogAbout->exec();
     delete dialogAbout;
+}
+
+TableModel* Widget::getTableModel() {
+    return (TableModel*)view->model();
 }
