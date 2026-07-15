@@ -13,6 +13,7 @@ This project implements a lightweight spreadsheet experience with:
 - formatting (text and background colors, font styles)
 - basic spreadsheet operations and Smart Fill (arithmetic and geometrical progressions, formula cell index offset)
 - copy & paste
+- Scripting with [Lumen](https://lumen.olehsheremeta.com/)
 
 ## Build Instructions
 
@@ -28,6 +29,12 @@ qmake Spreadsheets.pro
 mingw32-make
 ```
 
+### Arch Linux
+
+This project is available on Arch User Repository (AUR). To install:
+
+`yay -S simple-spreadsheets`
+
 ## Files of Interest
 
 - `main.cpp` - application entry point
@@ -39,6 +46,8 @@ mingw32-make
 - `styles.cpp` - spreadsheet formatting logic
 - `helpers.cpp` - various helpers (error messages etc.)
 - `tablemodel.cpp` - spreadsheet data model
+- `scriptingpanel.cpp` - scripting panel widget
+- `lumen-src` folder - [Lumen](https://lumen.olehsheremeta.com) compiler and VM.
 
 ## TODO
 
