@@ -3,9 +3,8 @@
 
 about::about(QWidget *parent) : QDialog(parent) {
     setFixedSize(230,170);
-    setWindowIcon(QIcon(":/icons/tomato"));
 
-    QLabel *app = new QLabel("Spreadsheets v1.0",this);
+    QLabel *app = new QLabel("Spreadsheets v2.0",this);
     QLabel *author = new QLabel("Made by spikest3r",this);
     QLabel *repo = new QLabel("Open source project<br><a href=\"https://github.com/spikest3r/Spreadsheets\">GitHub</a>",this);
     QLabel *website = new QLabel("<a href=\"https://olehsheremeta.com\">https://olehsheremeta.com</a>",this);

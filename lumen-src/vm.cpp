@@ -1,7 +1,19 @@
 #include "lumen-inc/vm.h"
+#include "scriptingpanel.h"
 
 int64_t getInt(const Variant& v) {
     return std::get<int64_t>(v.data);
+}
+
+bool keepRunning;
+bool halt;
+
+void setVMhalt() {
+    keepRunning = false;
+}
+
+bool vmRunning() {
+    return keepRunning;
 }
 
 int run(
@@ -9,24 +21,48 @@ int run(
     const std::vector<std::string>& stringPool,
     const int& variableIndex
 ) {
-    std::vector<Variant> variables;
-    variables.resize(variableIndex);
+    keepRunning = true;
+    halt = false;
 
-    std::vector<Variant> stack;
-    std::vector<int> pcStack;
-
-    int PC = 0;
-    bool halt = false;
-
-    while(true) {
-        auto opcode = bytecode[PC];
-        int offset = getOpCodeOffset(opcode);
-        
-        int result = execute(bytecode, stringPool, variables, stack, pcStack, PC, halt);
-
-        if(halt) break;
-        PC = result;
+    if (vmThread.joinable()) {
+        vmThread.join();
     }
+
+    vmThread = std::thread([variableIndex, bytecode, stringPool]{
+        std::vector<Variant> variables;
+        variables.resize(variableIndex);
+
+        std::vector<Variant> stack;
+        std::vector<int> pcStack;
+
+        int PC = 0;
+        int ic = 0;
+
+        while (keepRunning) {
+            auto result = execute(
+                bytecode,
+                stringPool,
+                variables,
+                stack,
+                pcStack,
+                PC,
+                halt
+                );
+
+            if (halt)
+                break;
+
+            PC = result;
+
+            if ((ic++ & 0xFF) == 0)
+                std::this_thread::sleep_for(std::chrono::milliseconds(1));
+        }
+
+        keepRunning = false;
+
+        ScriptingPanel::setRunActionText();
+    });
+
     return 0;
 }
 

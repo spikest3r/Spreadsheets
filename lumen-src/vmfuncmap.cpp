@@ -1,6 +1,8 @@
 #include "lumen-inc/vm.h"
 
 #include "widget.h"
+#include <condition_variable>
+#include <QThread> // TODO:  temp
 #include "scriptingpanel.h"
 #include <QInputDialog>
 
@@ -25,44 +27,97 @@ std::unordered_map<int, NativeFn> funcMap = {
         }, arg0.data);
     }},
     {0x03, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
-        // inputInt
-        auto varIndex = getInt(stack.back()); stack.pop_back();
+         // inputInt
+         auto varIndex = getInt(stack.back());
+         stack.pop_back();
 
-        bool ok;
-        int value = QInputDialog::getInt(
-            nullptr,
-            "Script Input",
-            "Enter a number:",
-            0,      // default value
-            -2147483647, // min
-            2147483647,  // max
-            1,      // step
-            &ok
-            );
+         std::mutex mtx;
+         std::condition_variable cv;
+         bool done = false;
+         int result = 0;
 
-        if(!ok) value = 0;
+         {
+             std::unique_lock lock(mtx);
 
-        variables[varIndex].type = TAG_INT;
-        variables[varIndex].data = value;
-    }},
+             QMetaObject::invokeMethod(
+                 Widget::instance,
+                 [&] {
+                     bool ok;
+
+                     int value = QInputDialog::getInt(
+                         Widget::instance,
+                         "Script Input",
+                         "Enter a number:",
+                         0,
+                         -2147483647,
+                         2147483647,
+                         1,
+                         &ok
+                         );
+
+                     {
+                         std::lock_guard inner(mtx);
+                         result = ok ? value : 0;
+                         done = true;
+                     }
+
+                     cv.notify_one();
+                 },
+                 Qt::QueuedConnection
+                 );
+
+             cv.wait(lock, [&] {
+                 return done;
+             });
+         }
+
+         variables[varIndex].type = TAG_INT;
+         variables[varIndex].data = static_cast<int64_t>(result);
+     }},
     {0x04, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
         // inputStr
         auto varIndex = getInt(stack.back()); stack.pop_back();
 
-        bool ok;
-        QString text = QInputDialog::getText(
-            Widget::instance,
-            "Script Input",
-            "Enter value:",
-            QLineEdit::Normal,
-            "", // default text
-            &ok
-        );
+        std::mutex mtx;
+        std::condition_variable cv;
+        bool done = false;
+        QString result;
 
-        if(!ok) text = "";
+        {
+            std::unique_lock lock(mtx);
+            done = false;
+
+            QMetaObject::invokeMethod(
+                Widget::instance,
+                [&] {
+                    bool ok;
+                    auto value = QInputDialog::getText(
+                        Widget::instance,
+                        "Script Input",
+                        "Enter value:",
+                        QLineEdit::Normal,
+                        "",
+                        &ok
+                        );
+
+                    {
+                        std::lock_guard inner(mtx);
+                        result = ok ? value : "";
+                        done = true;
+                    }
+
+                    cv.notify_one();
+                },
+                Qt::QueuedConnection
+                );
+
+            cv.wait(lock, [&] {
+                return done;
+            });
+        }
 
         variables[varIndex].type = TAG_STRING;
-        variables[varIndex].data = text.toStdString();
+        variables[varIndex].data = result.toStdString();
     }},
     {0x05, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
          // str2int

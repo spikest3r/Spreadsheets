@@ -4,6 +4,7 @@
 
 #include "lumen-inc/programfile.h"
 #include "global.h"
+#include <QMutex>
 
 class QPlainTextEdit;
 
@@ -17,6 +18,8 @@ public:
     static QVector<Script> scripts;
     static void initialize();
     static void updateMenu();
+    static void setRunActionText();
+    void startOutputFlushTimer();
 
 private:
     explicit ScriptingPanel(QWidget* parent = nullptr);
@@ -44,6 +47,13 @@ private:
     QPlainTextEdit* textEdit_;
     QPlainTextEdit* console_;
     QMenu* scriptsMenu;
+    QAction* runAction;
+
+    static QString s_pendingOutput;
+    static QMutex s_outputMutex;
+    static QTimer* s_flushTimer;
+    static constexpr int MAX_OUTPUT_CHARS = 1'000'000;
+    static int outputChars;
 
     BinaryProgram program;
 

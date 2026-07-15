@@ -1,6 +1,7 @@
 #include "widget.h"
 #include "tablemodel.h"
 #include "about.h"
+#include "lumen-inc/vm.h"
 
 #include "scriptingpanel.h"
 
@@ -254,15 +255,24 @@ void Widget::closeEvent(QCloseEvent* event) {
                 event->ignore();
                 return;
             }
+            setVMhalt();
+            if (vmThread.joinable())
+                vmThread.join();
             event->accept();
             ScriptingPanel::closeIfOpen();
         } else if (reply == QMessageBox::No) {
+            setVMhalt();
+            if (vmThread.joinable())
+                vmThread.join();
             event->accept();
             ScriptingPanel::closeIfOpen();
         } else { // Cancel
             event->ignore();
         }
     } else {
+        setVMhalt();
+        if (vmThread.joinable())
+            vmThread.join();
         event->accept();
         ScriptingPanel::closeIfOpen();
     }

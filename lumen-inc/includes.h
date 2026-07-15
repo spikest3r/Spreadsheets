@@ -1,4 +1,5 @@
 #pragma once
+#include <atomic>
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -17,3 +18,4 @@
 #include <chrono>
 #include <thread>
 #include <unordered_set>
+#include <condition_variable>

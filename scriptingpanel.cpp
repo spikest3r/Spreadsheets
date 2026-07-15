@@ -19,6 +19,10 @@
 
 ScriptingPanel* ScriptingPanel::s_instance = nullptr;
 QVector<Script> ScriptingPanel::scripts;
+QString ScriptingPanel::s_pendingOutput;
+QMutex ScriptingPanel::s_outputMutex;
+QTimer* ScriptingPanel::s_flushTimer = nullptr;
+int ScriptingPanel::outputChars = 0;
 
 void ScriptingPanel::initialize() {
     if (!s_instance) {
@@ -40,12 +44,42 @@ void ScriptingPanel::closeIfOpen() {
 }
 
 void ScriptingPanel::appendOutput(const QString& text) {
-    if (s_instance) {
-        QTextCursor cursor(s_instance->console_->document());
+    QMutexLocker lock(&s_outputMutex);
+    s_pendingOutput += text;
+}
+
+void ScriptingPanel::startOutputFlushTimer() {
+    if (s_flushTimer) return; // already started
+
+    s_flushTimer = new QTimer(this);
+    connect(s_flushTimer, &QTimer::timeout, this, [this]() {
+        QString textToFlush;
+        {
+            QMutexLocker lock(&s_outputMutex);
+            if (s_pendingOutput.isEmpty()) return;
+            textToFlush.swap(s_pendingOutput);
+        }
+
+        if (console_->document()->characterCount() > MAX_OUTPUT_CHARS) {
+            QTextCursor trimCursor(console_->document());
+            trimCursor.movePosition(QTextCursor::Start);
+            trimCursor.movePosition(QTextCursor::Down, QTextCursor::KeepAnchor,
+                                    console_->document()->blockCount() / 4); // trim ~25%
+            trimCursor.removeSelectedText();
+        }
+
+        QTextCursor cursor(console_->document());
         cursor.movePosition(QTextCursor::End);
-        cursor.insertText(text);
-        s_instance->console_->setTextCursor(cursor); // keeps view scrolled to the inserted text
-    }
+        cursor.insertText(textToFlush);
+        console_->setTextCursor(cursor);
+        outputChars += textToFlush.size();
+
+        if(outputChars >= 1'000'000) {
+            setVMhalt();
+            QMessageBox::critical(this, "Fatal error", "Console output limit has been reached. Script execution is halted.");
+        }
+    });
+    s_flushTimer->start(33); // ~30fps
 }
 
 ScriptingPanel::ScriptingPanel(QWidget* parent)
@@ -58,6 +92,7 @@ ScriptingPanel::ScriptingPanel(QWidget* parent)
 
     setupLayout();
     setupMenu();
+    startOutputFlushTimer();
 }
 
 void ScriptingPanel::setupLayout() {
@@ -74,6 +109,8 @@ void ScriptingPanel::setupLayout() {
     console_ = new QPlainTextEdit(splitter);
     console_->setReadOnly(true);
     console_->setPlaceholderText("Output will appear here...");
+    console_->setUndoRedoEnabled(false);
+    console_->document()->setMaximumBlockCount(1000);
 
     splitter->addWidget(textEdit_);
     splitter->addWidget(console_);
@@ -86,6 +123,7 @@ void ScriptingPanel::setupLayout() {
 void ScriptingPanel::clearConsole() {
     if (s_instance) {
         s_instance->console_->clear();
+        s_instance->outputChars = 0;
     }
 }
 
@@ -114,7 +152,7 @@ void ScriptingPanel::setupMenu() {
     // QAction* importAction = file->addAction("Import");
     // connect(importAction, &QAction::triggered, this, &ScriptingPanel::importScript);
 
-    QAction* runAction = menuBar()->addAction("Run");
+    runAction = menuBar()->addAction("Run");
     runAction->setShortcut(QKeySequence("Ctrl+R"));
     connect(runAction, &QAction::triggered, this, &ScriptingPanel::onRun);
 
@@ -126,6 +164,14 @@ void ScriptingPanel::setupMenu() {
 }
 
 void ScriptingPanel::onRun() {
+    if(vmRunning()) {
+        setVMhalt();
+        if (vmThread.joinable())
+            vmThread.join();
+        runAction->setText("Run");
+        return;
+    }
+
     clearConsole();
     const QString source = textEdit_->toPlainText();
 
@@ -146,7 +192,8 @@ void ScriptingPanel::onRun() {
         return;
     }
 
-    status = run(program.bytecode, program.stringPool, program.variableIndex);
+    runAction->setText("Stop");
+    run(program.bytecode, program.stringPool, program.variableIndex);
 }
 
 void ScriptingPanel::openDocsUrl() {
@@ -220,4 +267,14 @@ void ScriptingPanel::updateMenu() {
         s_instance->addScriptsEntry(script.name, i);
         i++;
     }
+}
+
+void ScriptingPanel::setRunActionText() {
+    QMetaObject::invokeMethod(
+        s_instance,
+        [] {
+            s_instance->runAction->setText("Run");
+        },
+        Qt::QueuedConnection
+        );
 }

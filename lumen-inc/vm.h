@@ -9,6 +9,8 @@ int64_t getInt(const Variant& v);
 
 extern std::unordered_map<int, NativeFn> funcMap;
 
+static std::thread vmThread;
+
 int run(
     const std::vector<int>& bytecode,
     const std::vector<std::string>& stringPool,
@@ -31,3 +33,6 @@ int execute(
     const int& PC,
     bool& halt
 );
+
+void setVMhalt();
+bool vmRunning();
