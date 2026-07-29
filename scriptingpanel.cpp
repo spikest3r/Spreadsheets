@@ -175,16 +175,12 @@ void ScriptingPanel::onRun() {
     clearConsole();
     const QString source = textEdit_->toPlainText();
 
-    program.bytecode.clear();
-    program.stringPool.clear();
-    program.variableIndex = 0;
+    CompilerData compilerData;
 
     // compile source code
     int status = compile(
         source.toStdString(),
-        program.bytecode,
-        program.stringPool,
-        program.variableIndex
+        &compilerData
     );
 
     if(status != 0) {
@@ -192,8 +188,16 @@ void ScriptingPanel::onRun() {
         return;
     }
 
+    program.bytecode = std::move(compilerData.bytecode);
+    program.constPool = std::move(compilerData.constPool);
+    program.stringPool = std::move(compilerData.stringPool);
+    program.variableCount = compilerData.variableCount;
+
+    auto progData = std::make_unique<VMProgramData>();
+    constructProgData(progData.get(), &program);
+
     runAction->setText("Stop");
-    run(program.bytecode, program.stringPool, program.variableIndex);
+    run(std::move(progData));
 }
 
 void ScriptingPanel::openDocsUrl() {

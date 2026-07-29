@@ -36,6 +36,7 @@ HEADERS += \
     global.h \
     lumen-inc/compiler.h \
     lumen-inc/helpers.h \
+    lumen-inc/httplib.h \
     lumen-inc/includes.h \
     lumen-inc/programfile.h \
     lumen-inc/tokenizer.h \
