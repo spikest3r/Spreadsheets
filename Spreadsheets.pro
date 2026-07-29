@@ -47,7 +47,12 @@ HEADERS += \
     widget.h \
     about.h
 
+win32:LIBS += -lws2_32
+
 # Default rules for deployment.
 qnx: target.path = /tmp/$${TARGET}/bin
 else: unix:!android: target.path = /opt/$${TARGET}/bin
 !isEmpty(target.path): INSTALLS += target
+
+DISTFILES += \
+    app.rc
