@@ -460,7 +460,7 @@ std::unordered_map<int, NativeFn> funcMap = {
         }
         }
     }},
-    {0xAA01, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xD1, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
         // setCell
         auto varIndex = getInt(stack.back()); stack.pop_back();
         auto col = getInt(stack.back()) - 1; stack.pop_back();
