@@ -172,7 +172,7 @@ int execute(
         auto it = funcMap.find(functionIndex);
         if (it != funcMap.end()) {
             try {
-                it->second(execData->stack, execData->variables);
+                it->second(execData);
             } catch(const std::exception& s) {
                 std::cerr << "Function error\n" << s.what() << std::endl;
                 execData->halt = true;
@@ -295,6 +295,82 @@ int execute(
             result.data = getInt(a) % getInt(b);
         }
         execData->stack.push_back(result);
+        break;
+    }
+    case 0xA6: { // INC
+        if (!execData->stack.empty()) {
+            auto* x = &execData->stack.back();
+
+            switch (x->type) {
+            case TAG_FLOAT:
+                std::get<double>(x->data)++;
+                break;
+
+            case TAG_INT:
+                std::get<int64_t>(x->data)++;
+                break;
+
+            case TAG_STRING:
+                break;
+            }
+        }
+        break;
+    }
+    case 0xA7: { // DEC
+        if (!execData->stack.empty()) {
+            auto* x = &execData->stack.back();
+
+            switch (x->type) {
+            case TAG_FLOAT:
+                std::get<double>(x->data)--;
+                break;
+
+            case TAG_INT:
+                std::get<int64_t>(x->data)--;
+                break;
+
+            case TAG_STRING:
+                break;
+            }
+        }
+        break;
+    }
+    case 0xA8: { // INCV
+        auto value = progData->bytecode[execData->PC + 1];
+        Variant* x = &execData->variables[value];
+
+        switch (x->type) {
+        case TAG_FLOAT:
+            std::get<double>(x->data)++;
+            break;
+
+        case TAG_INT:
+            std::get<int64_t>(x->data)++;
+            break;
+
+        case TAG_STRING:
+            break;
+        }
+
+        break;
+    }
+    case 0xA9: { // DECV
+        auto value = progData->bytecode[execData->PC + 1];
+        Variant* x = &execData->variables[value];
+
+        switch (x->type) {
+        case TAG_FLOAT:
+            std::get<double>(x->data)--;
+            break;
+
+        case TAG_INT:
+            std::get<int64_t>(x->data)--;
+            break;
+
+        case TAG_STRING:
+            break;
+        }
+
         break;
     }
     case 0xB0: // ==

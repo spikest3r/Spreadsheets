@@ -25,9 +25,9 @@ std::string toUpper(std::string s) {
 }
 
 std::unordered_map<int, NativeFn> funcMap = {
-    {0x01, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0x01, [](VMExecutionData* execData) {
         // println
-        auto arg0 = stack.back(); stack.pop_back();
+        auto arg0 = execData->stack.back(); execData->stack.pop_back();
         std::visit([](const auto& val) {
             std::ostringstream oss;
             oss << val;
@@ -35,19 +35,19 @@ std::unordered_map<int, NativeFn> funcMap = {
         }, arg0.data);
         ScriptingPanel::appendOutput("\n");
     }},
-    {0x02, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0x02, [](VMExecutionData* execData) {
         // print
-        auto arg0 = stack.back(); stack.pop_back();
+        auto arg0 = execData->stack.back(); execData->stack.pop_back();
         std::visit([](const auto& val) {
             std::ostringstream oss;
             oss << val;
             ScriptingPanel::appendOutput(QString::fromStdString(oss.str()));
         }, arg0.data);
     }},
-    {0x03, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0x03, [](VMExecutionData* execData) {
          // inputInt
-         auto varIndex = getInt(stack.back());
-         stack.pop_back();
+         auto varIndex = getInt(execData->stack.back());
+         execData->stack.pop_back();
 
          std::mutex mtx;
          std::condition_variable cv;
@@ -89,12 +89,12 @@ std::unordered_map<int, NativeFn> funcMap = {
              });
          }
 
-         variables[varIndex].type = TAG_INT;
-         variables[varIndex].data = static_cast<int64_t>(result);
+         execData->variables[varIndex].type = TAG_INT;
+         execData->variables[varIndex].data = static_cast<int64_t>(result);
      }},
-    {0x04, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0x04, [](VMExecutionData* execData) {
         // inputStr
-        auto varIndex = getInt(stack.back()); stack.pop_back();
+        auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
 
         std::mutex mtx;
         std::condition_variable cv;
@@ -134,13 +134,13 @@ std::unordered_map<int, NativeFn> funcMap = {
             });
         }
 
-        variables[varIndex].type = TAG_STRING;
-        variables[varIndex].data = result.toStdString();
+        execData->variables[varIndex].type = TAG_STRING;
+        execData->variables[varIndex].data = result.toStdString();
     }},
-    {0x05, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0x05, [](VMExecutionData* execData) {
          // str2int
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto value = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          int num = 0;
          std::string str = "0";
@@ -154,25 +154,25 @@ std::unordered_map<int, NativeFn> funcMap = {
              num = 0;
          }
 
-         variables[varIndex].type = TAG_INT;
-         variables[varIndex].data = num;
+         execData->variables[varIndex].type = TAG_INT;
+         execData->variables[varIndex].data = num;
      }},
-    {0x06, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0x06, [](VMExecutionData* execData) {
          // int2str
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto value = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          int num = 0;
          if(value.type == TAG_INT) num = getInt(value);
 
          std::string str = std::to_string(num);
-         variables[varIndex].type = TAG_STRING;
-         variables[varIndex].data = str;
+         execData->variables[varIndex].type = TAG_STRING;
+         execData->variables[varIndex].data = str;
      }},
-    {0x07, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0x07, [](VMExecutionData* execData) {
          // str2float
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto value = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          double num = 0.0;
          std::string str = "0";
@@ -186,26 +186,26 @@ std::unordered_map<int, NativeFn> funcMap = {
              num = 0.0;
          }
 
-         variables[varIndex].type = TAG_FLOAT;
-         variables[varIndex].data = num;
+         execData->variables[varIndex].type = TAG_FLOAT;
+         execData->variables[varIndex].data = num;
      }},
-    {0x08, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0x08, [](VMExecutionData* execData) {
          // float2str
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto value = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          double num = 0.0;
          if(value.type == TAG_FLOAT) num = std::get<double>(value.data);
          else if(value.type == TAG_INT) num = static_cast<double>(getInt(value)); // accept int too, same leniency as int2str only handling its own type
 
          std::string str = std::to_string(num);
-         variables[varIndex].type = TAG_STRING;
-         variables[varIndex].data = str;
+         execData->variables[varIndex].type = TAG_STRING;
+         execData->variables[varIndex].data = str;
      }},
     // stdlib impl
-    {0xA0, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA0, [](VMExecutionData* execData) {
          // assertCapability
-         auto value = stack.back(); stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
          if(value.type != TAG_STRING) {
              throw std::runtime_error("assertCapability failed: invalid value type");
          }
@@ -219,11 +219,11 @@ std::unordered_map<int, NativeFn> funcMap = {
 
          // capability present, proceed with execution
      }},
-    {0xA1, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA1, [](VMExecutionData* execData) {
          // openFile
-         auto handleVarIndex = getInt(stack.back()); stack.pop_back();
+         auto handleVarIndex = getInt(execData->stack.back()); execData->stack.pop_back();
 
-         auto value = stack.back(); stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          auto filename = std::get<std::string>(value.data);
 
@@ -234,14 +234,14 @@ std::unordered_map<int, NativeFn> funcMap = {
 
          fileHandles[fileHandleId] = stream;
 
-         variables[handleVarIndex].type = TAG_INT;
-         variables[handleVarIndex].data = fileHandleId++;
+         execData->variables[handleVarIndex].type = TAG_INT;
+         execData->variables[handleVarIndex].data = fileHandleId++;
      }},
-    {0xA2, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA2, [](VMExecutionData* execData) {
          // writeFile
-         auto handle = getInt(stack.back()); stack.pop_back();
+         auto handle = getInt(execData->stack.back()); execData->stack.pop_back();
 
-         auto value = stack.back(); stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          auto valueToWrite = std::get<std::string>(value.data);
 
@@ -253,25 +253,25 @@ std::unordered_map<int, NativeFn> funcMap = {
              throw std::runtime_error("writeFile failed: invalid file handle");
          }
      }},
-    {0xA3, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA3, [](VMExecutionData* execData) {
          // readFile
-         auto handle = getInt(stack.back()); stack.pop_back();
-         auto varIndex = getInt(stack.back()); stack.pop_back();
+         auto handle = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
 
          auto it = fileHandles.find(handle);
          if(it != fileHandles.end()) {
              auto f = it->second;
              std::string contents((std::istreambuf_iterator<char>(*f)), std::istreambuf_iterator<char>());
 
-             variables[varIndex].type = TAG_STRING;
-             variables[varIndex].data = contents;
+             execData->variables[varIndex].type = TAG_STRING;
+             execData->variables[varIndex].data = contents;
          } else {
              throw std::runtime_error("readFile failed: invalid file handle");
          }
      }},
-    {0xA4, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA4, [](VMExecutionData* execData) {
          // closeFile
-         auto handle = getInt(stack.back()); stack.pop_back();
+         auto handle = getInt(execData->stack.back()); execData->stack.pop_back();
 
          auto it = fileHandles.find(handle);
          if(it != fileHandles.end()) {
@@ -282,42 +282,42 @@ std::unordered_map<int, NativeFn> funcMap = {
              throw std::runtime_error("writeFile failed: invalid file handle");
          }
      }},
-    {0xA5, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA5, [](VMExecutionData* execData) {
          // randomSeed
-         auto seed = getInt(stack.back()); stack.pop_back();
+         auto seed = getInt(execData->stack.back()); execData->stack.pop_back();
 
          rngEngine.seed(seed);
      }},
-    {0xA6, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA6, [](VMExecutionData* execData) {
          // random
-         auto varIndex = getInt(stack.back()); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
 
          static std::uniform_real_distribution<double> dist(0.0, 1.0);
          float val = dist(rngEngine);
 
-         variables[varIndex].type = TAG_FLOAT;
-         variables[varIndex].data = val;
+         execData->variables[varIndex].type = TAG_FLOAT;
+         execData->variables[varIndex].data = val;
      }},
-    {0xA7, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA7, [](VMExecutionData* execData) {
          // randomRange
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto max = getInt(stack.back()); stack.pop_back();
-         auto min = getInt(stack.back()); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto max = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto min = getInt(execData->stack.back()); execData->stack.pop_back();
 
          std::uniform_int_distribution<int64_t> dist(min, max); // inclusive on both ends
          int64_t val = dist(rngEngine);
 
-         variables[varIndex].type = TAG_INT;
-         variables[varIndex].data = val;
+         execData->variables[varIndex].type = TAG_INT;
+         execData->variables[varIndex].data = val;
      }},
-    {0xA8, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA8, [](VMExecutionData* execData) {
          // httpRequest
-         auto outVarIndex = getInt(stack.back()); stack.pop_back();
-         auto statusVarIndex = getInt(stack.back()); stack.pop_back();
-         auto body = std::get<std::string>(stack.back().data); stack.pop_back();
-         auto headerStr = std::get<std::string>(stack.back().data); stack.pop_back();
-         auto url = std::get<std::string>(stack.back().data); stack.pop_back();
-         auto method = std::get<std::string>(stack.back().data); stack.pop_back();
+         auto outVarIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto statusVarIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto body = std::get<std::string>(execData->stack.back().data); execData->stack.pop_back();
+         auto headerStr = std::get<std::string>(execData->stack.back().data); execData->stack.pop_back();
+         auto url = std::get<std::string>(execData->stack.back().data); execData->stack.pop_back();
+         auto method = std::get<std::string>(execData->stack.back().data); execData->stack.pop_back();
 
          int outStatus;
          std::string outResponse;
@@ -356,28 +356,28 @@ std::unordered_map<int, NativeFn> funcMap = {
              outResponse = "request failed: " + httplib::to_string(res.error());
          }
 
-         variables[outVarIndex].type = TAG_STRING;
-         variables[outVarIndex].data = outResponse;
+         execData->variables[outVarIndex].type = TAG_STRING;
+         execData->variables[outVarIndex].data = outResponse;
 
-         variables[statusVarIndex].type = TAG_INT;
-         variables[statusVarIndex].data = outStatus;
+         execData->variables[statusVarIndex].type = TAG_INT;
+         execData->variables[statusVarIndex].data = outStatus;
      }},
-    {0xA9, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xA9, [](VMExecutionData* execData) {
          // strlen
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto value = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          auto str = std::get<std::string>(value.data);
 
-         variables[varIndex].type = TAG_INT;
-         variables[varIndex].data = static_cast<int64_t>(str.size());
+         execData->variables[varIndex].type = TAG_INT;
+         execData->variables[varIndex].data = static_cast<int64_t>(str.size());
      }},
-    {0xAA, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xAA, [](VMExecutionData* execData) {
          // substr(s, start, len, &out)
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto lenArg = getInt(stack.back()); stack.pop_back();
-         auto startArg = getInt(stack.back()); stack.pop_back();
-         auto value = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto lenArg = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto startArg = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          auto str = std::get<std::string>(value.data);
 
@@ -386,14 +386,14 @@ std::unordered_map<int, NativeFn> funcMap = {
              result = str.substr(startArg, lenArg);
          }
 
-         variables[varIndex].type = TAG_STRING;
-         variables[varIndex].data = result;
+         execData->variables[varIndex].type = TAG_STRING;
+         execData->variables[varIndex].data = result;
      }},
-    {0xAB, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xAB, [](VMExecutionData* execData) {
          // strfind(s, needle, &index)
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto needleVal = stack.back(); stack.pop_back();
-         auto strVal = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto needleVal = execData->stack.back(); execData->stack.pop_back();
+         auto strVal = execData->stack.back(); execData->stack.pop_back();
 
          auto str = std::get<std::string>(strVal.data);
          auto needle = std::get<std::string>(needleVal.data);
@@ -401,14 +401,14 @@ std::unordered_map<int, NativeFn> funcMap = {
          auto pos = str.find(needle);
          int64_t result = (pos == std::string::npos) ? -1 : static_cast<int64_t>(pos);
 
-         variables[varIndex].type = TAG_INT;
-         variables[varIndex].data = result;
+         execData->variables[varIndex].type = TAG_INT;
+         execData->variables[varIndex].data = result;
      }},
-    {0xAC, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xAC, [](VMExecutionData* execData) {
          // toUpper(s, &out) / toLower(s, &out) via a flag arg (0=lower, 1=upper)
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto upperFlag = getInt(stack.back()); stack.pop_back();
-         auto value = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto upperFlag = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          auto str = std::get<std::string>(value.data);
 
@@ -418,13 +418,13 @@ std::unordered_map<int, NativeFn> funcMap = {
              std::transform(str.begin(), str.end(), str.begin(), ::tolower);
          }
 
-         variables[varIndex].type = TAG_STRING;
-         variables[varIndex].data = str;
+         execData->variables[varIndex].type = TAG_STRING;
+         execData->variables[varIndex].data = str;
      }},
-    {0xAD, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xAD, [](VMExecutionData* execData) {
          // trim(s, &out)
-         auto varIndex = getInt(stack.back()); stack.pop_back();
-         auto value = stack.back(); stack.pop_back();
+         auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+         auto value = execData->stack.back(); execData->stack.pop_back();
 
          auto str = std::get<std::string>(value.data);
 
@@ -434,14 +434,14 @@ std::unordered_map<int, NativeFn> funcMap = {
 
          std::string result = (start == std::string::npos) ? "" : str.substr(start, end - start + 1);
 
-         variables[varIndex].type = TAG_STRING;
-         variables[varIndex].data = result;
+         execData->variables[varIndex].type = TAG_STRING;
+         execData->variables[varIndex].data = result;
      }},
-    {0xD0, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xD0, [](VMExecutionData* execData) {
         // setCell
-        auto value = stack.back(); stack.pop_back();
-        auto col = getInt(stack.back()) - 1; stack.pop_back();
-        auto row = getInt(stack.back()) - 1; stack.pop_back();
+        auto value = execData->stack.back(); execData->stack.pop_back();
+        auto col = getInt(execData->stack.back()) - 1; execData->stack.pop_back();
+        auto row = getInt(execData->stack.back()) - 1; execData->stack.pop_back();
 
         auto model = Widget::instance->getTableModel();
 
@@ -460,15 +460,15 @@ std::unordered_map<int, NativeFn> funcMap = {
         }
         }
     }},
-    {0xD1, [](std::vector<Variant>& stack, std::vector<Variant>& variables) {
+    {0xD1, [](VMExecutionData* execData) {
         // setCell
-        auto varIndex = getInt(stack.back()); stack.pop_back();
-        auto col = getInt(stack.back()) - 1; stack.pop_back();
-        auto row = getInt(stack.back()) - 1; stack.pop_back();
+        auto varIndex = getInt(execData->stack.back()); execData->stack.pop_back();
+        auto col = getInt(execData->stack.back()) - 1; execData->stack.pop_back();
+        auto row = getInt(execData->stack.back()) - 1; execData->stack.pop_back();
 
         auto model = Widget::instance->getTableModel();
 
-        variables[varIndex].type = TAG_STRING;
-        variables[varIndex].data = model->getCell(row, col)->value.toString().toStdString();
+        execData->variables[varIndex].type = TAG_STRING;
+        execData->variables[varIndex].data = model->getCell(row, col)->value.toString().toStdString();
      }}
 };

@@ -178,7 +178,7 @@ void ScriptingPanel::onRun() {
     CompilerData compilerData;
 
     // compile source code
-    int status = compile(
+    int status = compileFromText(
         source.toStdString(),
         &compilerData
     );
