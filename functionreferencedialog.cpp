@@ -22,7 +22,7 @@ FunctionReferenceDialog::FunctionReferenceDialog(QWidget* parent)
 
     struct FuncInfo { QString sig; QString desc; };
     const QVector<FuncInfo> functions = {
-                                          { "getCell <row> <col> &<var>", "Reads a cell's value into a variable." },
+                                          { "getCell <row> <col>", "Reads and returns a cell's value." },
                                           { "setCell <row> <col> <value>", "Writes a value into a cell." },
                                           };
 

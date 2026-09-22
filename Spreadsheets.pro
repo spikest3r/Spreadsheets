@@ -13,13 +13,19 @@ SOURCES += \
     formulaparser.cpp \
     functionreferencedialog.cpp \
     helpers.cpp \
-    lumen-src/compiler.cpp \
-    lumen-src/compiler_math.cpp \
+    lumen-src/compiler/compiler.cpp \
+    lumen-src/compiler/compiler_finalize.cpp \
+    lumen-src/compiler/compiler_helpers.cpp \
+    lumen-src/compiler/compiler_statement.cpp \
+    lumen-src/compiler/compiler_tables.cpp \
+    lumen-src/compiler/exprparse.cpp \
     lumen-src/lumen_helpers.cpp \
     lumen-src/programfile.cpp \
     lumen-src/tokenizer.cpp \
-    lumen-src/vm.cpp \
-    lumen-src/vmfuncmap.cpp \
+    lumen-src/vm/memoryallocator.cpp \
+    lumen-src/vm/translator.cpp \
+    lumen-src/vm/vm.cpp \
+    lumen-src/vm/vmfuncmap.cpp \
     main.cpp \
     operations.cpp \
     saveload.cpp \
@@ -35,6 +41,7 @@ HEADERS += \
     functionreferencedialog.h \
     global.h \
     lumen-inc/compiler.h \
+    lumen-inc/compiler_internal.h \
     lumen-inc/helpers.h \
     lumen-inc/httplib.h \
     lumen-inc/includes.h \
